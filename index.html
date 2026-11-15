@@ -69,8 +69,8 @@ textarea{min-height:92px;resize:vertical}
 .dos .rt{text-align:right;flex:0 0 auto}
 .dos .rt .mt{font-weight:800;font-size:14.5px}
 .badge{display:inline-block;border-radius:20px;padding:3px 9px;font-size:11.5px;font-weight:800;margin-top:5px}
-.b-cours{background:#eef0ed;color:#444}.b-verif{background:#fff1c9;color:#7a5a00}.b-envoye{background:#dff7da;color:#1d7a12}.b-paye{background:#000;color:var(--v)}
-.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.b-devis{background:#e3edff;color:#1f4fb3}.b-cours{background:#eef0ed;color:#444}.b-verif{background:#fff1c9;color:#7a5a00}.b-envoye{background:#dff7da;color:#1d7a12}.b-paye{background:#000;color:var(--v)}
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:12px}
 .stat{background:#000;color:#fff;border-radius:12px;padding:10px;text-align:center}
 .stat b{display:block;font-size:20px;color:var(--v)}.stat span{font-size:11px;color:#ccc;font-weight:600}
 .empty{text-align:center;color:var(--m);padding:30px 10px}
@@ -96,8 +96,8 @@ textarea{min-height:92px;resize:vertical}
 .ligne .h{display:flex;justify-content:space-between;align-items:center;font-weight:800;font-size:14px}
 .ligne .h button{background:none;border:0;color:#b52a1c;font-weight:700;font-size:14px;cursor:pointer}
 .adds{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
-.tot{background:#000;color:#fff;border-radius:12px;padding:12px 14px;margin-top:12px;line-height:1.8}
-.tot div{display:flex;justify-content:space-between}.tot .ttc{color:var(--v);font-weight:800;font-size:17px}
+.card .tot{background:#000;color:#fff;border-radius:12px;padding:12px 14px;margin-top:12px;line-height:1.8}
+.card .tot div{display:flex;justify-content:space-between}.card .tot .ttc{color:var(--v);font-weight:800;font-size:17px}
 .warn{background:#fff6d6;border:1px solid #e9cf6b;border-radius:10px;padding:10px 12px;font-size:13.5px;margin-top:10px;line-height:1.4}
 .ok{background:#e8f9e4;border:1px solid #9de08f;border-radius:10px;padding:10px 12px;font-size:13.5px;margin-top:10px;line-height:1.4}
 /* Barre d'actions */
@@ -105,6 +105,7 @@ textarea{min-height:92px;resize:vertical}
 .actions .btn{flex:1;max-width:260px}
 .saved{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(78px + env(safe-area-inset-bottom));background:#111;color:#fff;border-radius:20px;padding:8px 14px;font-size:13px;font-weight:600;z-index:40;opacity:0;transition:opacity .25s;pointer-events:none}
 .saved.on{opacity:.92}
+#eSous[data-ok="1"]::after{content:"  ✓ enregistré";color:#b9f5b1;font-weight:600;text-transform:none;letter-spacing:0}
 /* Historique */
 .hist{font-size:13.5px;line-height:1.5}
 .hist div{padding:6px 0;border-bottom:1px solid #eee}
@@ -128,7 +129,7 @@ pre.mail{white-space:pre-wrap;background:#f6f7f5;border:1px solid var(--b);borde
 #stage{position:fixed;left:-30000px;top:0;width:794px}
 #stage .frame{width:auto;height:auto;box-shadow:none;margin:0;overflow:visible}
 #stage .frame .sheet{transform:none}
-@media (max-width:420px){.stats{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:420px){.stats .stat{padding:8px 2px}.stats .stat b{font-size:17px}.stats .stat span{font-size:10px}}
 
 /* ===== Nouveau design ===== */
 :root{--v:#3DDC2F;--v2:#25a51a;--vd:#0f3d0a;--g:#f1f3f0;--am:#f2a20c;--bl:#2f7cf6;--rd:#e2463a}
@@ -137,6 +138,8 @@ body{background:var(--g)}
 .burger{font-size:21px;min-width:44px;background:rgba(255,255,255,.08)}
 .logo-dark{height:50px;width:auto;display:block;filter:drop-shadow(0 0 6px rgba(61,220,47,.35))}
 .top .tt b{font-size:18px}
+.top .tt b,.top .tt small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:360px){.seg button{font-size:12px;padding:8px 2px}.top .tt b{font-size:16px}.logo-dark{height:42px}}
 /* menu latéral */
 .drawer{position:fixed;inset:0;z-index:80;pointer-events:none}
 .drawer .dback{position:absolute;inset:0;background:rgba(0,0,0,.5);opacity:0;transition:opacity .25s}
@@ -343,6 +346,8 @@ table.tb{width:100%;border-collapse:collapse;font-size:13.5px}
         <button class="qbtn main" id="qRap"><span class="qi">📑</span>Rapport d'expertise<small>Photo ou PDF</small></button>
         <button class="qbtn" id="qNew"><span class="qi">➕</span>Nouveau dossier<small>Remplir à la main</small></button>
         <button class="qbtn" id="qEnc"><span class="qi">💶</span>Encaisser<small>Noter un paiement</small></button>
+        <button class="qbtn" id="qDevis"><span class="qi">📝</span>Nouveau devis<small>Prix pour le client</small></button>
+        <button class="qbtn" id="qFact"><span class="qi">🧾</span>Factures<small>Toutes les factures</small></button>
       </div>
       <div class="pretcard" id="pretCard"></div>
       <div class="seg" id="per"></div>
@@ -368,6 +373,14 @@ table.tb{width:100%;border-collapse:collapse;font-size:13.5px}
       <div class="seg" id="fSeg"></div>
       <div id="fSum"></div>
       <div id="fList"></div>
+    </div>
+
+    <!-- DEVIS -->
+    <div data-v="devis" class="hide">
+      <button class="btn v full" id="dvNew" style="margin-bottom:12px">📝 Nouveau devis</button>
+      <div class="seg" id="dvSeg"></div>
+      <div id="dvSum"></div>
+      <div id="dvList"></div>
     </div>
 
     <!-- ENCAISSEMENTS -->
@@ -471,7 +484,7 @@ table.tb{width:100%;border-collapse:collapse;font-size:13.5px}
     <button data-go="dash"><span class="bi">🏠</span>Accueil</button>
     <button data-go="home"><span class="bi">📁</span>Dossiers</button>
     <button class="plus" id="bNew"><span class="bi">+</span>Nouveau</button>
-    <button data-go="enc"><span class="bi">💶</span>Paiements</button>
+    <button data-go="fact"><span class="bi">🧾</span>Factures</button>
     <button id="bMenu2"><span class="bi">☰</span>Menu</button>
   </nav>
 </div>
@@ -485,6 +498,7 @@ table.tb{width:100%;border-collapse:collapse;font-size:13.5px}
     <button class="ditem" data-go="dash"><span class="di">🏠</span>Tableau de bord</button>
     <button class="ditem" id="dScan"><span class="di">🪪</span>Scanner une carte grise</button>
     <button class="ditem" id="dNew"><span class="di">➕</span>Nouveau dossier</button>
+    <button class="ditem" id="dDevis"><span class="di">📝</span>Nouveau devis</button>
     <div class="dsec">DOSSIERS</div>
     <button class="ditem" data-go="home" data-filtre="tous"><span class="di">📁</span>Tous les dossiers<span class="cnt" id="cTous"></span></button>
     <button class="ditem" data-go="home" data-filtre="cours"><span class="di">🛠️</span>En cours<span class="cnt" id="cCours"></span></button>
@@ -494,6 +508,7 @@ table.tb{width:100%;border-collapse:collapse;font-size:13.5px}
     <button class="ditem" data-go="pret"><span class="di">🚗</span>Véhicules de prêt<span class="cnt" id="cPret"></span></button>
     <div class="dsec">FACTURATION</div>
     <button class="ditem" data-go="fact"><span class="di">🧾</span>Factures</button>
+    <button class="ditem" data-go="devis"><span class="di">📝</span>Devis<span class="cnt" id="cDv"></span></button>
     <button class="ditem" data-go="enc"><span class="di">💶</span>Suivi des encaissements</button>
     <div class="dsec">CONTACTS</div>
     <button class="ditem" data-go="assur"><span class="di">📇</span>Assurances et experts</button>
@@ -619,6 +634,25 @@ table.tb{width:100%;border-collapse:collapse;font-size:13.5px}
 
     <!-- ENVOI -->
     <div data-p="envoi" class="hide">
+      <button class="btn c full" id="bDvShow" style="margin-bottom:14px">📝 Faire un devis pour ce dossier</button>
+      <div class="card" id="cDevis">
+        <h2>Devis</h2>
+        <div id="dvEtat"></div>
+        <div class="row">
+          <div><label>N° de devis</label><input data-k="dv_num" id="iDv" inputmode="numeric" placeholder="Attribué au besoin"></div>
+          <div><label>Date du devis</label><input type="date" data-k="dv_date"></div>
+        </div>
+        <label>Validité (jours)</label><input data-k="dv_valid" inputmode="numeric">
+        <div class="grid2" style="margin-top:10px">
+          <button class="btn c" id="bDvNum">Attribuer un n°</button>
+          <button class="btn v" id="bDvPdf">Créer le devis PDF</button>
+        </div>
+        <div class="grid2" style="margin-top:8px">
+          <button class="btn n" id="bDvOk">✓ Devis accepté</button>
+          <button class="btn c" id="bDvKo" style="color:#b52a1c">Refusé</button>
+        </div>
+        <div class="hint">Accepté : le dossier passe en facture. La facture indiquera « Suivant devis n° … ».</div>
+      </div>
       <div class="card">
         <h2>Facture</h2>
         <div class="row">
@@ -661,7 +695,7 @@ table.tb{width:100%;border-collapse:collapse;font-size:13.5px}
       <div class="card">
         <h2>Suivi</h2>
         <label>État du dossier</label>
-        <select id="statut"><option value="cours">En cours</option><option value="verif">À vérifier</option><option value="envoye">Envoyé à l'assurance</option><option value="paye">Payé</option></select>
+        <select id="statut"><option value="devis">Devis (pas encore accepté)</option><option value="cours">En cours</option><option value="verif">À vérifier</option><option value="envoye">Envoyé à l'assurance</option><option value="paye">Payé</option></select>
         <label>Note interne</label><textarea data-k="note" placeholder="Ex. relancer l'expert lundi"></textarea>
         <div class="hist" id="hist"></div>
         <button class="btn c s" id="bDel" style="margin-top:12px;color:#b52a1c">Supprimer ce dossier</button>
@@ -698,7 +732,7 @@ const PRESETS = {
   pacifica:{assureur_court:"Pacifica",assureur_affiche:"Crédit Agricole Assurances (Pacifica)",assureur_ligne:"PACIFICA (Crédit Agricole Assurances), 8/10 boulevard de Vaugirard, 75724 Paris Cedex 15",destinataire:"PACIFICA – CRÉDIT AGRICOLE ASSURANCES\nc/o (agence du client)\n(adresse de l'agence)\n(code postal et ville)",mail_assureur:"",mail_expert:"BCA.446@bca.fr"},
   autre:{assureur_court:"",assureur_affiche:"",assureur_ligne:"",destinataire:"",mail_assureur:""}
 };
-const STATUTS={cours:["En cours","b-cours"],verif:["À vérifier","b-verif"],envoye:["Envoyé","b-envoye"],paye:["Payé","b-paye"]};
+const STATUTS={devis:["Devis","b-devis"],cours:["En cours","b-cours"],verif:["À vérifier","b-verif"],envoye:["Envoyé","b-envoye"],paye:["Payé","b-paye"]};
 
 function today(){const d=new Date();return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10);}
 function blankS(){
@@ -706,7 +740,7 @@ function blankS(){
     n_sinistre:"",date_sinistre:"",exp_num:"",exp_date:"",client_civ:"M.",client_nom:"",client_rue:"",client_ville:"",pro:false,
     assureur_court:"",assureur_affiche:"",assureur_ligne:"",n_client:"",n_contrat:"",destinataire:"",mail_assureur:"",mail_expert:"",
     marque:"",modele:"",immat:"",mec:"",vin:"",energie:"Gazole",lignes:[],note:"",
-    d_fac:true,d_or:true,d_ces:true,d_not:true,d_pj:true};
+    d_fac:true,d_or:true,d_ces:true,d_not:true,d_pj:true,dv_num:"",dv_date:"",dv_valid:"30",dv_ok:false};
 }
 
 /* ---------- Outils ---------- */
@@ -763,7 +797,9 @@ const SHEET=(cls,inner)=>`<div class="frame"><div class="sheet ${cls}"><div clas
 /* ---------- Facture ---------- */
 function facture(d,c){
   let regl=[];
-  if(S.exp_num){regl.push(`Suivant expertise n° ${esc(S.exp_num)}${S.exp_date?" du "+fr(S.exp_date):""}`);regl.push(`Prestation : ${d.DATE} — Échéance : à réception`);}
+  const dv=S.dv_num&&S.dv_ok?`devis n° ${esc(S.dv_num)}${S.dv_date?" du "+fr(S.dv_date):""}`:"";
+  if(S.exp_num){regl.push(`Suivant expertise n° ${esc(S.exp_num)}${S.exp_date?" du "+fr(S.exp_date):""}${dv?" et "+dv:""}`);regl.push(`Prestation : ${d.DATE} — Échéance : à réception`);}
+  else if(dv){regl.push("Suivant "+dv);regl.push(`Prestation : ${d.DATE} — Échéance : à réception`);}
   else{regl.push(`Date de prestation : ${d.DATE}`);regl.push("Échéance : à réception");}
   regl.push(REGL_LIGNE);regl.push(IBAN_LIGNE);
   const cachet=`<div style="position:relative;height:0"><div style="position:absolute;left:-104mm;top:-31mm;width:90mm"><div style="font-weight:700;font-size:9pt">Cachet et signature :</div><img src="${TAMPON}" style="height:26mm;margin-top:2mm;mix-blend-mode:multiply"></div></div>`;
@@ -853,6 +889,21 @@ function notification(d,c){
 }
 
 
+/* ---------- Devis ---------- */
+function devisDoc(d,c){
+  const dd=fr(S.dv_date||today()),jusq=fr(plusJours(S.dv_date||today(),num(S.dv_valid)||30));
+  const regl=[`Devis valable ${num(S.dv_valid)||30} jours, jusqu'au ${jusq}`,REGL_LIGNE,
+    `<b>Bon pour accord</b> — date et signature du client :`,`<span style="display:inline-block;width:88mm;border-bottom:1px solid #999;height:9mm"></span>`];
+  const cachet=`<div style="position:relative;height:0"><div style="position:absolute;left:-104mm;top:-31mm;width:90mm"><div style="font-weight:700;font-size:9pt">Cachet et signature :</div><img src="${TAMPON}" style="height:26mm;margin-top:2mm;mix-blend-mode:multiply"></div></div>`;
+  const pied='EXPERT AUTO 63 — SARL au capital de 10 000 € — Siège social : 3 impasse des Clématites, 63530 Volvic — RCS Clermont-Ferrand 999 578 743<br>Devis gratuit. Les prix des pièces sont susceptibles d\'évoluer après la date de validité du devis.';
+  return SHEET("fac",`${HEAD("DEVIS",esc(S.dv_num||"—"),d.objet,dd)}${PARTIES("CLIENT",d.client_html)}${VEH()}
+<div class="bloc"><div class="band">DÉTAIL DES TRAVAUX PRÉVUS</div><table class="det"><colgroup><col class="a"><col class="b"><col class="c"><col class="d"><col></colgroup>
+<tr><th>Désignation</th><th>Référence / détail</th><th class="r">Qté</th><th class="r">PU HT</th><th class="r">Total HT</th></tr>${c.rows}</table></div>
+<table class="tot"><tr><td>TOTAL HT</td><td>${eur(c.ht)}</td></tr><tr><td>TVA 20 %</td><td>${eur(c.tva)}</td></tr><tr class="ttc"><td>TOTAL TTC</td><td>${eur(c.ttc)}</td></tr></table>
+<div class="regl">${cachet}${regl.join("<br>")}</div><div class="foot">${pied}</div>`);
+}
+function plusJours(iso,n){const t=new Date(iso+"T12:00:00");t.setDate(t.getDate()+n);return t.toISOString().slice(0,10);}
+
 
 /* ====================================================================
    STOCKAGE : Firebase (en ligne, partagé) ou appareil (mode essai)
@@ -878,6 +929,7 @@ const Local={
   async addPhoto(id,p){p.did=id;await idbReq(this.st("photos","readwrite").put(p));},
   async delPhoto(id,pid){await idbReq(this.st("photos","readwrite").delete(pid));},
   async nextNum(){const st=this.st("meta","readwrite");const c=await idbReq(st.get("compteur"));const n=(c?c.v:DERNIER_NUMERO_AVANT_APPLI)+1;await idbReq(this.st("meta","readwrite").put({k:"compteur",v:n}));return n;},
+  async nextDevis(){const c=await idbReq(this.st("meta").get("compteur_devis"));const n=(c?c.v:0)+1;await idbReq(this.st("meta","readwrite").put({k:"compteur_devis",v:n}));return n;},
   async meta(k){return idbReq(this.st("meta").get(k));},
   async setMeta(k,v){return idbReq(this.st("meta","readwrite").put({k,v}));}
 };
@@ -904,6 +956,8 @@ const Cloud={
   async delPhoto(id,pid){const F=this.F;await F.deleteDoc(F.doc(this.db,"dossiers",id,"photos",pid));},
   async nextNum(){const F=this.F;const ref=F.doc(this.db,"meta","compteur");
     return F.runTransaction(this.db,async tx=>{const s=await tx.get(ref);const n=(s.exists()?s.data().dernier:DERNIER_NUMERO_AVANT_APPLI)+1;tx.set(ref,{dernier:n});return n;});},
+  async nextDevis(){const F=this.F;const ref=F.doc(this.db,"meta","compteur_devis");
+    return F.runTransaction(this.db,async tx=>{const s=await tx.get(ref);const n=(s.exists()?s.data().dernier:0)+1;tx.set(ref,{dernier:n});return n;});},
   async meta(k){const F=this.F;const s=await F.getDoc(F.doc(this.db,"meta",k));return s.exists()?{k,v:s.data().v}:null;},
   async setMeta(k,v){const F=this.F;await F.setDoc(F.doc(this.db,"meta",k),{v});}
 };
@@ -926,6 +980,7 @@ async function seedArchives(){
    OUTILS D'INTERFACE
    ==================================================================== */
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+function savedDot(){const e=$("#eSous");if(!e)return;e.dataset.ok="1";clearTimeout(savedDot.t);savedDot.t=setTimeout(()=>{e.dataset.ok="";},1600);}
 let toastT;function toast(t){const e=$("#toast");e.textContent=t;e.classList.add("on");clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove("on"),2200);}
 function show(v){["#vLogin","#vMain","#vEdit"].forEach(x=>$(x).classList.toggle("hide",x!==v));window.scrollTo(0,0);}
 function modal(t,html){$("#mT").textContent=t;$("#mB").innerHTML=html;$("#modal").classList.remove("hide");}
@@ -950,7 +1005,7 @@ function setTab(t){TAB=t;$$(".tab").forEach(b=>b.classList.toggle("on",b.dataset
   const i=ORDRE.indexOf(t);$("#bPrev").disabled=i===0;$("#bNext").textContent=i===ORDRE.length-1?"Terminer ✓":"Suivant ›";window.scrollTo(0,0);if(t==="envoi")renderChecks();}
 $$(".tab").forEach(b=>b.onclick=()=>setTab(b.dataset.t));
 $("#bPrev").onclick=()=>{const i=ORDRE.indexOf(TAB);if(i>0)setTab(ORDRE[i-1]);};
-function vide(d,photos){const x=d.S||{};return !d.archive&&!x.numero&&!x.client_nom&&!x.immat&&!x.marque&&!x.vin&&!x.n_contrat&&!(x.lignes||[]).length&&!photos;}
+function vide(d,photos){const x=d.S||{};return !d.archive&&!x.numero&&!x.dv_num&&!x.client_nom&&!x.immat&&!x.marque&&!x.vin&&!x.n_contrat&&!(x.lignes||[]).length&&!photos;}
 async function quitter(){if(CUR&&vide(CUR,PHOTOS.length)){const id=CUR.id;CUR=null;try{await DB.del(id);}catch(e){}go(VIEW);return;}await saveNow();go(VIEW);}
 let NETTOYE=false;
 async function nettoyer(){if(NETTOYE)return;NETTOYE=true;const lim=new Date(Date.now()-10*60e3).toISOString();
@@ -961,7 +1016,7 @@ $("#bBack").onclick=quitter;
 function log(txt){CUR.historique=CUR.historique||[];CUR.historique.push({at:nowIso(),by:ME||"cet appareil",txt});}
 function scheduleSave(){clearTimeout(saveT);saveT=setTimeout(saveNow,700);}
 async function saveNow(){if(!CUR)return;clearTimeout(saveT);CUR.S=S;CUR.updatedAt=nowIso();CUR.updatedBy=ME||"cet appareil";
-  try{await DB.save(CUR);toast("Enregistré");}catch(e){toast("Pas enregistré : "+(e.code||e.message));}}
+  try{await DB.save(CUR);savedDot();}catch(e){toast("Pas enregistré : "+(e.code||e.message));}}
 
 function startNew(){
   CUR={id:"D"+uid(),S:blankS(),statut:"cours",createdAt:nowIso(),createdBy:ME||"cet appareil",historique:[]};
@@ -984,7 +1039,7 @@ function header(){$("#eTitre").textContent=(S.numero?"N° "+S.numero+" · ":"")+
 function fillForm(){
   $$("[data-k]").forEach(el=>{const k=el.dataset.k;el.classList.remove("lu");if(el.type==="checkbox")el.checked=!!S[k];else el.value=S[k]??"";});
   $("#statut").value=CUR.statut||"cours";$("#preset").value="";
-  lignesUI();renderPhotos();renderTot();renderHist();renderPay();header();
+  lignesUI();renderPhotos();renderTot();renderHist();renderPay();header();dvEtat();
   $("#archNote").innerHTML=CUR.archive&&!S.lignes.length?`<div class="warn">Dossier fait avant l'application : montant de la facture <b>${eur(CUR.ttc_archive)}</b> TTC. Le détail des lignes n'a pas été repris : ajoutez-les seulement si vous devez refaire les documents.</div>`:"";
 }
 $$("[data-k]").forEach(el=>{
@@ -1154,21 +1209,21 @@ $("#bNum").onclick=async()=>{if(S.numero&&!confirm(`Ce dossier a déjà le n° $
   try{const n=await DB.nextNum();S.numero=String(n);$("#iNum").value=S.numero;log("N° de facture attribué : "+n);renderHist();header();renderChecks();await saveNow();toast("Facture n° "+n);}
   catch(e){toast("Il faut du réseau pour attribuer le numéro");}};
 
-async function makePdf(){
-  const btn=$("#bPdf");btn.disabled=true;btn.textContent="Création du PDF…";
+async function makePdf(o){o=o||{};
+  const btn=o.btn||$("#bPdf"),lab=btn.textContent;btn.disabled=true;btn.textContent="Création du PDF…";
   try{
     await loadScript("https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js");
     await loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
-    const st=$("#stage");st.innerHTML=docsHTML();await Promise.all([...st.querySelectorAll("img")].map(i=>i.decode?i.decode().catch(()=>{}):0));
+    const st=$("#stage");st.innerHTML=o.html||docsHTML();await Promise.all([...st.querySelectorAll("img")].map(i=>i.decode?i.decode().catch(()=>{}):0));
     const pdf=new jspdf.jsPDF({unit:"mm",format:"a4",compress:true});let first=true;
     for(const sh of st.querySelectorAll(".sheet")){const cv=await html2canvas(sh,{scale:2,backgroundColor:"#ffffff",useCORS:true,logging:false});
       if(!first)pdf.addPage();first=false;pdf.addImage(cv.toDataURL("image/jpeg",0.86),"JPEG",0,0,210,297);}
     st.innerHTML="";
     const nom=(S.client_nom||"client").split(" ").pop().toUpperCase().replace(/[^A-Z0-9]/g,"");
-    const fname=`DOSSIER_${S.numero||"X"}_${nom}_${(S.immat||"").replace(/[^A-Z0-9]/gi,"")}.pdf`;
+    const fname=o.fname||`DOSSIER_${S.numero||"X"}_${nom}_${(S.immat||"").replace(/[^A-Z0-9]/gi,"")}.pdf`;
     const blob=pdf.output("blob");log("PDF créé : "+fname);renderHist();await saveNow();
     return {blob,fname};
-  }finally{btn.disabled=false;btn.textContent="Créer le PDF";}
+  }finally{btn.disabled=false;btn.textContent=lab;}
 }
 $("#bPdf").onclick=async()=>{
   const m=manque();if(m.length&&!confirm("Il manque : "+m.join(", ")+".\nCréer le PDF quand même ?"))return;
@@ -1189,14 +1244,12 @@ $("#bPdf").onclick=async()=>{
 function mailTexte(){const d=D(),c=calc();
   const refs=[S.n_contrat&&"Contrat n° "+S.n_contrat,S.n_client&&"N° client / sociétaire : "+S.n_client,S.n_sinistre&&"Sinistre n° "+S.n_sinistre,S.exp_num&&"Rapport d'expertise n° "+S.exp_num+(S.exp_date?" du "+fr(S.exp_date):"")].filter(Boolean);
   const pj=[S.d_fac&&`Facture n° ${S.numero}`,S.d_or&&`Ordre de réparation n° ${S.numero}`,S.d_ces&&`Cession de créance n° ${S.numero} signée`,S.d_not&&"Notification de cession",S.d_pj&&PHOTOS.length&&"Copies des documents (carte grise, attestation…)"].filter(Boolean);
-  const objet=[titre(S.sinistre_type),S.client_civ+" "+S.client_nom,S.n_sinistre?"Sinistre "+S.n_sinistre:(S.n_contrat?"Contrat "+S.n_contrat:""),vehNom()+" "+S.immat,"Facture n° "+S.numero].filter(x=>x&&x.trim()).join(" – ");
+  const objet=[S.sinistre_type.charAt(0).toUpperCase()+S.sinistre_type.slice(1),S.client_civ+" "+S.client_nom,S.n_sinistre?"Sinistre "+S.n_sinistre:(S.n_contrat?"Contrat "+S.n_contrat:""),vehNom()+" "+S.immat,"Facture n° "+S.numero].filter(x=>x&&x.trim()).join(" – ");
   const corps=`Madame, Monsieur,
 
 Veuillez trouver ci-joint le dossier de votre assuré${S.client_civ==="Mme"?"e":""} ${S.client_civ} ${S.client_nom} concernant le véhicule ${vehNom()} immatriculé ${S.immat} : ${S.objet.toLowerCase()}.
 
-${refs.join("\n")}
-
-Montant : ${eur(c.ht)} HT, soit ${eur(c.ttc)} TTC.
+${refs.length?refs.join("\n")+"\n\n":""}Montant : ${eur(c.ht)} HT, soit ${eur(c.ttc)} TTC.
 
 Pièces jointes (un seul PDF) :
 - ${pj.join("\n- ")}
@@ -1230,7 +1283,7 @@ $("#bEnvoye").onclick=async()=>{const m=manque();if(m.length&&!confirm("Il manqu
    NAVIGATION, MENU LATÉRAL, TABLEAU DE BORD, FACTURES, ENCAISSEMENTS
    ==================================================================== */
 let VIEW="dash",PER="annee",FSEG="tous";
-const TITLES={pret:["Véhicules de prêt","Photos départ / retour"],pretE:["Prêt de véhicule","Départ et retour"],dash:["Accueil","Tableau de bord"],home:["Dossiers","Tous les dossiers"],fact:["Factures","Facturation"],enc:["Encaissements","Suivi des paiements"],assur:["Assurances","Contacts et experts"],soc:["Ma société","Informations et compte"]};
+const TITLES={devis:["Devis","Tous les devis"],pret:["Véhicules de prêt","Départ / retour"],pretE:["Prêt de véhicule","Départ et retour"],dash:["Accueil","Tableau de bord"],home:["Dossiers","Tous les dossiers"],fact:["Factures","Facturation"],enc:["Encaissements","Suivi des paiements"],assur:["Assurances","Contacts"],soc:["Ma société","Infos et compte"]};
 function openDrawer(){$("#drawer").classList.add("open");}
 function closeDrawer(){$("#drawer").classList.remove("open");}
 $("#bMenu").onclick=openDrawer;$("#bMenu2").onclick=openDrawer;$("#dBack").onclick=closeDrawer;
@@ -1247,7 +1300,8 @@ function renderView(){
   const c={cours:0,verif:0};ALL.forEach(d=>c[d.statut]=(c[d.statut]||0)+1);
   $("#cTous").textContent=ALL.length||"";$("#cCours").textContent=c.cours||"";$("#cVerif").textContent=c.verif||"";
   $("#cPret").textContent=PRETS.filter(p=>p.statut!=="rendu").length||"";
-  ({pret:renderPrets,pretE:()=>{},dash:renderDash,home:renderList,fact:renderFact,enc:renderEnc,assur:renderAssur,soc:()=>{}})[VIEW]();
+  $("#cDv").textContent=ALL.filter(d=>d.statut==="devis").length||"";
+  ({devis:renderDevis,pret:renderPrets,pretE:()=>{},dash:renderDash,home:renderList,fact:renderFact,enc:renderEnc,assur:renderAssur,soc:()=>{}})[VIEW]();
 }
 const MOIS=["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."];
 const MOISL=["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
@@ -1281,7 +1335,7 @@ function renderDash(){
    <div class="kpi k3" data-k="enc"><span>Reste à encaisser</span><b>${eur(reste)}</b><i>${F.filter(d=>resteOf(d)>0.009).length} facture(s)</i></div>
    <div class="kpi k4" data-k="home"><span>Dossiers en cours</span><b>${enCours}</b><i>à finir / vérifier</i></div>`;
   $$("#kpis .kpi").forEach(k=>k.onclick=()=>{if(k.dataset.k==="home")FILTRE="tous";go(k.dataset.k);});
-  const T=ALL.filter(d=>d.statut==="cours"||d.statut==="verif").sort((a,b)=>(b.updatedAt||"").localeCompare(a.updatedAt||"")).slice(0,4);
+  const T=ALL.filter(d=>d.statut==="cours"||d.statut==="verif"||d.statut==="devis").sort((a,b)=>(b.updatedAt||"").localeCompare(a.updatedAt||"")).slice(0,4);
   $("#todo").innerHTML=T.length?T.map(dosItem).join(""):'<div class="empty" style="padding:14px">Rien en attente 👍</div>';bindDos($("#todo"));
   renderPretCard();
   const nOk=F.filter(d=>resteOf(d)<0.01).length,nKo=F.length-nOk;
@@ -1325,7 +1379,7 @@ function renderFact(){
   const t=L.reduce((a,d)=>a+ttcOf(d),0),r=L.reduce((a,d)=>a+resteOf(d),0);
   $("#fSum").innerHTML=`<div class="sumbox"><div><span>Total TTC</span><b>${eur(t)}</b></div><div><span>Reste à encaisser</span><b>${eur(r)}</b></div></div>`;
   let html="",cur="";L.forEach(d=>{const m=(d.S.date||"").slice(0,7);if(m!==cur){cur=m;const[y,mm]=m.split("-");html+=`<div class="mhd"><span>${MOISL[+mm-1]||""} ${y||""}</span></div>`;}html+=fRow(d);});
-  $("#fList").innerHTML=html||'<div class="empty">Aucune facture.</div>';bindDos($("#fList"));
+  $("#fList").innerHTML=html||'<div class="empty">Aucune facture.</div>';$$("#fList .frow").forEach(e=>e.onclick=()=>voirFacture(e.dataset.id));
 }
 $("#fq").oninput=renderFact;
 function renderEnc(){
@@ -1333,7 +1387,7 @@ function renderEnc(){
   const P=[];F.forEach(d=>(d.paiements||[]).forEach(p=>P.push({d,p})));P.sort((a,b)=>(b.p.date||"").localeCompare(a.p.date||""));
   const mo=today().slice(0,7),enMois=P.filter(x=>(x.p.date||"").slice(0,7)===mo).reduce((a,x)=>a+num(x.p.montant),0);
   $("#eSum").innerHTML=`<div class="sumbox"><div><span>Reste à encaisser</span><b>${eur(KO.reduce((a,d)=>a+resteOf(d),0))}</b></div><div><span>Encaissé ce mois</span><b>${eur(enMois)}</b></div></div>`;
-  $("#eList").innerHTML=`<div class="mhd"><span>À encaisser (${KO.length})</span><span>les plus anciennes d'abord</span></div>`+(KO.map(d=>fRow(d,true)).join("")||'<div class="empty">Tout est encaissé 👍</div>')+
+  $("#eList").innerHTML=`<div class="mhd"><span>À encaisser (${KO.length})</span></div>`+(KO.map(d=>fRow(d,true)).join("")||'<div class="empty">Tout est encaissé 👍</div>')+
    `<div class="mhd"><span>Derniers paiements</span></div>`+(P.slice(0,30).map(({d,p})=>`<div class="frow" data-id="${esc(d.id)}"><div class="fn" style="background:#e9f9e5;color:#1d7a12">✓</div><div class="fi"><b>${esc(d.S.client_nom||"")} · N° ${esc(d.S.numero)}</b><span>${fr(p.date)} · ${esc(p.mode||"")}${p.by?" · "+esc(qui(p.by)):""}</span></div><div class="fr"><b>${eur(num(p.montant))}</b></div></div>`).join("")||'<div class="empty">Aucun paiement noté pour l\'instant.</div>');
   bindDos($("#eList"));
   $$("#eList [data-enc]").forEach(b=>b.onclick=e=>{e.stopPropagation();encModal(ALL.find(x=>x.id===b.dataset.enc));});
@@ -1404,7 +1458,7 @@ function renderPrets(){
   $$("#lList [data-lid]").forEach(e=>e.onclick=()=>openPret(e.dataset.lid));}
 function lLog(t){LCUR.historique=LCUR.historique||[];LCUR.historique.push({at:nowIso(),by:ME||"cet appareil",txt:t});}
 async function lSave(){if(!LCUR)return;clearTimeout(lSaveT);LCUR.updatedAt=nowIso();LCUR.updatedBy=ME||"cet appareil";LCUR.nPhotos=LPH.length;
-  try{await DB.save(LCUR);toast("Enregistré");}catch(e){toast("Pas enregistré : "+(e.code||e.message));}}
+  try{await DB.save(LCUR);savedDot();}catch(e){toast("Pas enregistré : "+(e.code||e.message));}}
 function lSched(){clearTimeout(lSaveT);lSaveT=setTimeout(lSave,700);}
 function newPret(){LCUR={id:"L"+uid(),type:"pret",statut:"pret",P:{dep_at:nowLocal()},createdAt:nowIso(),createdBy:ME||"cet appareil",historique:[]};lLog("Prêt créé");LPH=[];
   const dern=PRETS.slice().sort((a,b)=>(b.createdAt||"").localeCompare(a.createdAt||""))[0];
@@ -1457,6 +1511,61 @@ $("#lRendu").onclick=async()=>{if(LCUR.statut==="rendu"){LCUR.statut="pret";lLog
 $("#lBack").onclick=async()=>{if(LCUR&&!LPH.length&&!LCUR.P.immat&&!LCUR.P.client){LCUR=null;go("pret");return;}await lSave();LCUR=null;go("pret");};
 $("#lDel").onclick=async()=>{if(!confirm("Supprimer définitivement ce prêt et ses photos ?"))return;try{await DB.del(LCUR.id);}catch(e){}LCUR=null;go("pret");toast("Prêt supprimé");};
 $("#lNew").onclick=newPret;
+
+
+/* ====================================================================
+   DEVIS
+   ==================================================================== */
+let DVSEG="att";
+function dvEtat(){const e=$("#dvEtat");if(!e||!CUR)return;
+  const montre=!!(S.dv_num||CUR.statut==="devis"||CUR.dvShow);$("#cDevis").classList.toggle("hide",!montre);$("#bDvShow").classList.toggle("hide",montre);
+  const st=CUR.devis_etat||(S.dv_num?(CUR.statut==="devis"?"att":"ok"):"");
+  e.innerHTML=st==="ok"?'<div class="ok" style="margin:0 0 6px">Devis accepté ✓</div>':st==="ko"?'<div class="warn" style="margin:0 0 6px">Devis refusé</div>':st==="att"?'<div class="warn" style="margin:0 0 6px;background:#e3edff;border-color:#9ab7f0">En attente de la réponse du client</div>':"";}
+async function nouveauDevis(){startNew();CUR.statut="devis";S.dv_date=today();S.objet="";log("Devis créé");
+  try{const n=await DB.nextDevis();S.dv_num=String(n);log("N° de devis attribué : "+n);}catch(e){}
+  fillForm();setTab("client");await saveNow();toast("Devis n° "+(S.dv_num||"?"));}
+$("#bDvShow").onclick=()=>{CUR.dvShow=true;dvEtat();};
+$("#bDvNum").onclick=async()=>{if(S.dv_num&&!confirm(`Ce devis a déjà le n° ${S.dv_num}. En attribuer un nouveau ?`))return;
+  try{const n=await DB.nextDevis();S.dv_num=String(n);$("#iDv").value=S.dv_num;if(!S.dv_date){S.dv_date=today();$('[data-k="dv_date"]').value=S.dv_date;}
+    if(CUR.statut==="cours"&&!S.numero){CUR.statut="devis";$("#statut").value="devis";}log("N° de devis attribué : "+n);renderHist();header();dvEtat();await saveNow();toast("Devis n° "+n);}
+  catch(e){toast("Il faut du réseau pour attribuer le numéro");}};
+$("#bDvPdf").onclick=async()=>{if(!S.dv_num)return toast("Attribuez d'abord un n° de devis");if(!S.lignes.length)return toast("Ajoutez les travaux (onglet Travaux)");
+  if(!S.dv_date){S.dv_date=today();}
+  let r;try{r=await makePdf({btn:$("#bDvPdf"),html:devisDoc(D(),calc()),fname:`DEVIS_${S.dv_num}_${(S.client_nom||"client").split(" ").pop().toUpperCase().replace(/[^A-Z0-9]/g,"")}.pdf`});}
+  catch(e){return toast("PDF impossible : "+(e.message||e));}
+  const file=new File([r.blob],r.fname,{type:"application/pdf"}),url=URL.createObjectURL(r.blob);
+  const txt=`Bonjour,\n\nVeuillez trouver ci-joint notre devis n° ${S.dv_num} pour votre véhicule ${vehNom()} ${S.immat||""} (${(S.objet||"travaux").toLowerCase()}), d'un montant de ${eur(calc().ttc)} TTC.\n\nPour l'accepter, il suffit de nous le renvoyer signé avec la mention « Bon pour accord », ou de nous appeler.\n\nCordialement,\nEXPERT AUTO 63\n1 rue Pierre et Marie Curie, 63200 Riom\nTél. 06 26 52 33 62`;
+  modal("Devis prêt",`<p style="margin-top:0"><b>${esc(r.fname)}</b></p>
+   ${navigator.canShare&&navigator.canShare({files:[file]})?`<button class="btn v full" id="dvShare">✉️ Envoyer au client (mail, SMS, WhatsApp…)</button><div style="height:8px"></div>`:""}
+   <a class="btn c full" href="${url}" download="${esc(r.fname)}">Télécharger le PDF</a><div style="height:8px"></div>
+   <button class="btn n full" id="dvCp">Copier le texte du message</button>`);
+  const sh=$("#dvShare");if(sh)sh.onclick=async()=>{try{await navigator.share({files:[file],title:"Devis n° "+S.dv_num,text:txt});log("Devis envoyé au client");renderHist();saveNow();}catch(e){}};
+  $("#dvCp").onclick=()=>copier(txt);log("PDF du devis créé");renderHist();saveNow();};
+$("#bDvOk").onclick=async()=>{if(!S.dv_num)return toast("Pas encore de n° de devis");
+  CUR.devis_etat="ok";S.dv_ok=true;if(CUR.statut==="devis"){CUR.statut="cours";$("#statut").value="cours";}
+  if(!S.date||S.date<S.dv_date){S.date=today();$('[data-k="date"]').value=S.date;}
+  log("Devis n° "+S.dv_num+" accepté");renderHist();header();dvEtat();await saveNow();
+  if(!S.numero&&confirm("Devis accepté ✓\nAttribuer maintenant le n° de facture ?"))$("#bNum").click();};
+$("#bDvKo").onclick=async()=>{if(!confirm("Marquer ce devis comme refusé ?"))return;CUR.devis_etat="ko";S.dv_ok=false;log("Devis refusé");renderHist();dvEtat();await saveNow();toast("Devis refusé");};
+function renderDevis(){
+  $("#dvSeg").innerHTML=[["att","En attente"],["ok","Acceptés"],["ko","Refusés"],["tous","Tous"]].map(([k,l])=>`<button class="${DVSEG===k?"on":""}" data-s="${k}">${l}</button>`).join("");
+  $$("#dvSeg button").forEach(b=>b.onclick=()=>{DVSEG=b.dataset.s;renderDevis();});
+  const et=d=>d.devis_etat||(d.statut==="devis"?"att":"ok");
+  const L=ALL.filter(d=>d.S&&d.S.dv_num).filter(d=>DVSEG==="tous"||et(d)===DVSEG).sort((a,b)=>num(b.S.dv_num)-num(a.S.dv_num));
+  const tot=L.reduce((a,d)=>a+ttcOf(d),0);
+  $("#dvSum").innerHTML=`<div class="sumbox"><div><span>Devis</span><b>${L.length}</b></div><div><span>Montant TTC</span><b>${eur(tot)}</b></div></div>`;
+  $("#dvList").innerHTML=L.map(d=>{const e=et(d);return `<div class="frow" data-id="${esc(d.id)}"><div class="fn" style="background:#e3edff;color:#1f4fb3;font-size:13px;flex-direction:column"><small style="font-size:9px">DEVIS</small>${esc(d.S.dv_num)}</div><div class="fi"><b>${esc(d.S.client_nom||"Client ?")}</b><span>${fr(d.S.dv_date)} · ${esc(d.S.immat||"")} ${esc(titre((d.S.marque+" "+d.S.modele).trim()))}</span></div>
+    <div class="fr"><b>${eur(ttcOf(d))}</b><span class="pill ${e==="ok"?"p-ok":e==="ko"?"p-ko":"p-part"}">${e==="ok"?(d.S.numero?"Facturé n° "+esc(d.S.numero):"Accepté"):e==="ko"?"Refusé":"En attente"}</span></div></div>`;}).join("")||'<div class="empty">Aucun devis ici.</div>';
+  bindDos($("#dvList"));}
+$("#dvNew").onclick=nouveauDevis;$("#qDevis").onclick=nouveauDevis;$("#dDevis").onclick=nouveauDevis;$("#qFact").onclick=()=>go("fact");
+/* Aperçu d'une facture depuis la liste */
+function voirFacture(id){const d0=ALL.find(x=>x.id===id);if(!d0)return;
+  if(d0.archive&&(!d0.S.lignes||!d0.S.lignes.length)){modal("Facture n° "+d0.S.numero,`<p>Facture faite avant l'application : <b>${eur(d0.ttc_archive)}</b> TTC, du ${fr(d0.S.date)}.</p><p class="hint">Le détail des lignes n'a pas été repris dans l'application. Le PDF d'origine est dans vos fichiers.</p><button class="btn c full" id="vfOpen">Ouvrir le dossier</button>`);$("#vfOpen").onclick=()=>{$("#modal").classList.add("hide");openDossier(id);};return;}
+  const S0=S;S=Object.assign(blankS(),d0.S);let h;try{h=facture(D(),calc());}finally{S=S0;}
+  const w=Math.min(window.innerWidth,820)-40;document.documentElement.style.setProperty("--s",(w/794).toFixed(4));
+  modal("Facture n° "+d0.S.numero,h+`<div class="grid2"><button class="btn c" id="vfOpen">Ouvrir le dossier</button><button class="btn v" id="vfPdf">Créer le PDF</button></div>`);
+  $("#vfOpen").onclick=()=>{$("#modal").classList.add("hide");openDossier(id);};
+  $("#vfPdf").onclick=async()=>{$("#modal").classList.add("hide");await openDossier(id);setTab("envoi");toast("Cochez « Facture » seule si besoin, puis « Créer le PDF »");};}
 
 /* ====================================================================
    DÉMARRAGE
