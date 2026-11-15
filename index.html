@@ -4,6 +4,16 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>EA63 Dossiers</title>
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Expert Auto 63">
+<meta property="og:title" content="Expert Auto 63 – Documents à signer">
+<meta property="og:description" content="Ordre de réparation, cession de créance… Ouvrez et signez avec le doigt.">
+<meta property="og:image" content="https://kevin97-oos.github.io/ea63-dossiers./apercu.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:url" content="https://kevin97-oos.github.io/ea63-dossiers./">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="description" content="Expert Auto 63 – Documents à signer">
 <meta name="theme-color" content="#000000">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -1856,7 +1866,7 @@ async function preparerSig(ks){
   log("Lien de signature créé : "+docs.map(x=>x.titre).join(", "));await saveNow();return CUR.signature;}
 
 function texteSig(g){const n=g.docs.length;
-  return `Bonjour ${S.client_civ} ${S.client_nom},\nExpert Auto 63 vous envoie ${n>1?"les documents":"le document"} à signer pour votre ${vehNom()} ${S.immat} : ${g.docs.map(x=>x.titre.toLowerCase()).join(", ")}.\nOuvrez ce lien et signez avec le doigt :\n${lienSig(g.token)}\n\nExpert Auto 63 – 06 26 52 33 62`;}
+  return `Bonjour ${S.client_civ} ${S.client_nom},\nExpert Auto 63 vous envoie ${n>1?"les documents":"le document"} à signer pour votre ${vehNom()} ${S.immat} : ${g.docs.map(x=>x.titre.toLowerCase()).join(", ")}.\nUne question : 06 26 52 33 62.\nSignez avec le doigt en ouvrant le lien ci-dessous :\n\n${lienSig(g.token)}`;}
 
 $("#bSig").onclick=()=>{if(!CUR||Store.mode!=="cloud")return;
   const g=CUR.signature&&CUR.signature.statut==="attente"?CUR.signature:null;
