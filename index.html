@@ -629,6 +629,7 @@ table.tb{width:100%;border-collapse:collapse;font-size:13.5px}
         </div>
         <div id="warnL"></div>
         <div class="tot" id="tot"></div>
+        <div id="rapCmp" style="margin-top:10px"></div>
       </div>
     </div>
 
@@ -1072,7 +1073,7 @@ function lignesUI(){
   box.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{S.lignes.splice(+b.dataset.del,1);lignesUI();renderTot();scheduleSave();});
   $("#warnL").innerHTML=S.lignes.length>5?'<div class="warn">Plus de 5 lignes : regroupez les lignes au même taux (le détail va dans la référence) pour que la facture tienne sur une page.</div>':"";
 }
-function renderTot(){const c=calc();$("#tot").innerHTML=`<div><span>Total HT</span><b>${eur(c.ht)}</b></div><div><span>TVA 20 %</span><b>${eur(c.tva)}</b></div><div class="ttc"><span>Total TTC</span><span>${eur(c.ttc)}</span></div>`;
+function renderTot(){setTimeout(()=>{try{renderRapCmp();}catch(e){}},0);const c=calc();$("#tot").innerHTML=`<div><span>Total HT</span><b>${eur(c.ht)}</b></div><div><span>TVA 20 %</span><b>${eur(c.tva)}</b></div><div class="ttc"><span>Total TTC</span><span>${eur(c.ttc)}</span></div>`;
   $("#hOr").textContent=S.genre==="carro"?`Carrosserie : par défaut 5 jours avant la facture (${fr(moins5(S.date))}).`:"Pare-brise : l'ordre prend la date de la facture.";}
 const vehNom=()=>titre(`${S.marque} ${S.modele}`.trim());
 const ADD={
@@ -1106,6 +1107,12 @@ function fileToImg(f){return new Promise((res,rej)=>{const u=URL.createObjectURL
 function compress(src,max=1500,q=0.68){const w=src.naturalWidth||src.width,h=src.naturalHeight||src.height,k=Math.min(1,max/Math.max(w,h));
   const c=document.createElement("canvas");c.width=Math.round(w*k);c.height=Math.round(h*k);c.getContext("2d").drawImage(src,0,0,c.width,c.height);
   let d=c.toDataURL("image/jpeg",q);if(d.length>900000)d=c.toDataURL("image/jpeg",0.5);return d;}
+function layoutText(items){ // remet le texte du PDF en lignes, dans l'ordre de lecture (gauche → droite)
+  const its=items.filter(i=>i.str&&i.str.trim()).map(i=>({x:i.transform[4],y:i.transform[5],w:i.width||0,s:i.str}));
+  its.sort((a,b)=>b.y-a.y||a.x-b.x);const rows=[];
+  for(const it of its){let r=rows.find(r=>Math.abs(r.y-it.y)<=2.5);if(!r){r={y:it.y,a:[]};rows.push(r);}r.a.push(it);}
+  rows.sort((a,b)=>b.y-a.y);
+  return rows.map(r=>{r.a.sort((a,b)=>a.x-b.x);let out="",end=null;for(const it of r.a){if(end!==null){const gap=it.x-end;out+=gap>12?"   ":(gap>1.2?" ":"");}out+=it.s;end=it.x+it.w;}return out;}).join("\n");}
 function ocrBox(html){$("#ocrBox").innerHTML=html?`<div class="ocr">${html}</div>`:"";}
 
 async function addFile(f,kind){
@@ -1114,13 +1121,14 @@ async function addFile(f,kind){
       ocrBox("Ouverture du PDF…");
       await loadScript("https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js");
       pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
-      const pdf=await pdfjsLib.getDocument({data:await f.arrayBuffer()}).promise;let txt="";
+      const pdf=await pdfjsLib.getDocument({data:await f.arrayBuffer()}).promise;let txt="",txtL="";
       for(let p=1;p<=Math.min(pdf.numPages,8);p++){const pg=await pdf.getPage(p);
-        const tc=await pg.getTextContent();let lastY=null;tc.items.forEach(it=>{const y=Math.round(it.transform[5]);txt+=(lastY!==null&&Math.abs(y-lastY)>3?"\n":" ")+it.str;lastY=y;});txt+="\n";
+        const tc=await pg.getTextContent();let lastY=null;tc.items.forEach(it=>{const y=Math.round(it.transform[5]);txt+=(lastY!==null&&Math.abs(y-lastY)>3?"\n":" ")+it.str;lastY=y;});txt+="\n";txtL+=layoutText(tc.items)+"\n";
         const vp=pg.getViewport({scale:1.6});const c=document.createElement("canvas");c.width=vp.width;c.height=vp.height;
         await pg.render({canvasContext:c.getContext("2d"),viewport:vp}).promise;
         await savePhoto(kind,compress(c,1500,0.7),`${f.name} — page ${p}`);}
-      if(txt.trim().length>40)applyRead(kind,txt);else ocrBox("PDF ajouté. Le texte n'a pas pu être lu (PDF scanné) : complétez à la main.");
+      if(kind!=="rap"&&/RAPPORT\s+D.EXPERTISE|CONCLUSIONS\s+TECHNIQUES|ALPHAEXPERT/i.test(txtL))kind="rap";
+      if(txt.trim().length>40)applyRead(kind,kind==="rap"?txtL:txt);else ocrBox("PDF ajouté. Le texte n'a pas pu être lu (PDF scanné) : complétez à la main.");
       return;}
     const img=await fileToImg(f);const data=compress(img);await savePhoto(kind,data,f.name||KINDS[kind]);
     if(kind!=="veh")await readImage(kind,img);
@@ -1179,19 +1187,214 @@ function parseRap(t){const o=parseAtt(t),T=norm(t);
   const rp=T.match(/(?:rapport|dossier|r[ée]f[ée]rence|n[°o]\s*expertise)\s*(?:n[°o])?\s*[:.]?\s*([A-Z]{0,4}\d[A-Z0-9.\/\-]{4,})/i);if(rp)o.exp_num=rp[1];
   const cg=parseCG(t);["immat","vin","marque","modele","mec"].forEach(k=>{if(cg[k]&&!o[k])o[k]=cg[k];});
   return o;}
+/* ====================================================================
+   LECTURE AUTOMATIQUE DES RAPPORTS D'EXPERTISE
+   Formats connus : Lang & Associés / AlphaExpert, BCA, Evalys / Experts Groupe,
+   et lecture générique (T1, T2, T3, M1, M2, M3, peinture, ingrédients, pièces, forfaits).
+   ==================================================================== */
+const GRILLE={T1:95,T2:95,T3:95,P:95,M1:60,M2:70,M3:70,I:90};
+const NOMPOSTE={T1:"carrosserie T1",T2:"carrosserie T2",T3:"carrosserie T3",P:"peinture",M1:"mécanique T1",M2:"mécanique T2",M3:"mécanique T3",I:"ingrédients peinture"};
+const NUM="(\\d{1,3}(?:[  ]\\d{3})+(?:[.,]\\d+)?|\\d+(?:[.,]\\d+)?)";
+const PRIX="(\\d{1,3}(?:[  ]\\d{3})+[.,]\\d{2}|\\d+[.,]\\d{2})";
+function pn(s){if(s==null)return NaN;s=String(s).replace(/[\s  €]/g,"");if(s.includes(","))s=s.replace(/\./g,"").replace(",",".");return parseFloat(s);}
+function isoD(dd,mm,yy){if(!dd)return"";let y=+yy;if(String(yy).length===2)y=2000+y;return`${y}-${String(mm).padStart(2,"0")}-${String(dd).padStart(2,"0")}`;}
+function frD(dd,mm,yy){let y=String(yy);if(y.length===2)y=(+y>40?"19":"20")+y;return`${String(dd).padStart(2,"0")}/${String(mm).padStart(2,"0")}/${y}`;}
+const PETITS=new Set(["DE","DU","DES","LA","LE","LES","ET","EN","AU","AUX","A","À","D","L","SUR","PAR","POUR"]);
+function phrase(s){s=s.trim().replace(/\s+/g," ");const w=s.split(" ").map((x,i)=>{const u=x.toUpperCase();
+  if(/\d/.test(x)||(x.length<=3&&x===u&&!PETITS.has(u.replace(/'.*/,""))&&/[A-Z]/.test(x)))return x;return x.toLowerCase();}).join(" ");
+  return accents(w.charAt(0).toUpperCase()+w.slice(1));}
+const ACC={DEBOSSELAGE:"débosselage",DEGARNISSAGE:"dégarnissage",DEPOSE:"dépose",DEMONTAGE:"démontage",DEGRAISSAGE:"dégraissage",DECHETS:"déchets",ELEMENT:"élément",ELEMENTS:"éléments",ECHANGE:"échange",LECHE:"lèche",EXTERIEUR:"extérieur",INTERIEUR:"intérieur",ETANCHEITE:"étanchéité",CAMERA:"caméra",RETROVISEUR:"rétroviseur",PRIMAIRE:"primaire"};
+function accents(s){return s.replace(/[A-Za-zÀ-ÿ]+/g,w=>{const a=ACC[w.toUpperCase()];if(!a)return w;return w===w.toUpperCase()&&w.length>3?a.toUpperCase():(w[0]===w[0].toUpperCase()?a[0].toUpperCase()+a.slice(1):a);});}
+const VOIES=/^(rue|avenue|av|allée|allee|chemin|impasse|place|route|boulevard|bd|lieu-dit|lotissement|résidence|quai|cours|square|chaussée|hameau|village)$/i;
+function fmtRue(s){return titre(s).split(" ").map(w=>PETITS.has(w.toUpperCase())||VOIES.test(w)?w.toLowerCase():w).join(" ").replace(/\b(bis|ter)\b/gi,m=>m.toLowerCase());}
+function nomPrenom(s){const w=s.trim().split(/\s+/).filter(Boolean);if(w.length<2)return s.trim();return titre(w.slice(1).join(" "))+" "+w[0].toUpperCase();}
+function code(lib){const u=lib.toUpperCase();if(/^ING/.test(u))return"I";if(/^PEINT/.test(u))return"P";const m=u.match(/^([TM])\s?([123])/);return m?m[1]+m[2]:null;}
+
+function parseExpertise(text){
+  const T=text.replace(/[‐-―]/g,"-").replace(/ /g," "),U=T.toUpperCase();
+  const L=T.split("\n").map(s=>s.replace(/\s+$/,"")).filter(s=>s.trim());
+  const o={},R={postes:[],pieces:[],warn:[]};
+  const fmt=/ALPHAEXPERT|!\s*POSTES/.test(U)?"lang":/BCA EXPERTISE|R[ÉE]F[ÉE]RENCE BCA/.test(U)?"bca":/EVALYS|EXPERTS\s*GROUPE/.test(U)?"evalys":"autre";
+  R.cabinet={lang:"Lang & Associés",bca:"BCA Expertise",evalys:"Evalys / Experts Groupe 63",autre:""}[fmt];
+  const g=(re,i=1)=>{const m=T.match(re);return m?m[i].trim():"";};
+
+  /* ---- Références ---- */
+  let v;
+  v=g(/N°\s*police(?:\/ordre)?\s*:?\s*([A-Z0-9][A-Z0-9\/.\-]{4,})/i)||g(/N°\s*(?:de\s*)?contrat\s*:?\s*([A-Z0-9][A-Z0-9\/.\-]{4,})/i)||g(/\bpolice\s*n°?\s*:?\s*([A-Z0-9][A-Z0-9\/.\-]{4,})/i);if(v)o.n_contrat=v;
+  v=g(/N°\s*(?:de\s*)?sinistre\s*:?\s*([A-Z0-9][A-Z0-9\/.\-]{4,})/i)||g(/\bsinistre\s*n°\s*:?\s*([A-Z0-9][A-Z0-9\/.\-]{4,})/i);if(v)o.n_sinistre=v;
+  v=g(/N°\s*rapport\s*:?\s*([A-Z0-9][A-Z0-9\/.\-]{4,})/i)||g(/R[ée]f[ée]rence\s+BCA\s*:?\s*([A-Z0-9][A-Z0-9\/.\-]{4,})/i)||g(/R[ée]f\.?\s*(?:cabinet|expert)\s*:?\s*([A-Z0-9][A-Z0-9\/.\-]{4,})/i)||g(/(?:rapport|dossier)\s*n°\s*:?\s*([A-Z0-9][A-Z0-9\/.\-]{4,})/i);if(v)o.exp_num=v;
+  let m=T.match(/Date\s*(?:du\s*|de\s*)?sinistre\s*:?\s*(\d{1,2})[\/.](\d{1,2})[\/.](\d{2,4})/i)||T.match(/sinistre\s+du\s*:?\s*(\d{1,2})[\/.](\d{1,2})[\/.](\d{2,4})/i);if(m)o.date_sinistre=isoD(m[1],m[2],m[3]);
+  m=T.match(/vu\s+avant\s+travaux[^\d\n]{0,40}(\d{1,2})[\/.](\d{1,2})[\/.](\d{2,4})/i)||T.match(/RAPPORT\s+D.EXPERTISE\s+DU\s*:?\s*(\d{1,2})[\/.](\d{1,2})[\/.](\d{2,4})/i)||(L[0]||"").match(/(\d{1,2})[\/.](\d{1,2})[\/.](\d{2,4})/);
+  if(m)o.exp_date=isoD(m[1],m[2],m[3]);
+  m=T.match(/Code\s*Ges(?:tionnaire|t)?\.?\s*:?\s*([A-Z0-9]{4,})/i);if(m)R.code_gest=m[1];
+
+  /* ---- Assureur ---- */
+  const soc=g(/Nom\s+soci[ée]t[ée]\s*:?\s*([^\n!]+)/i)||g(/\bSoci[ée]t[ée]\s*:\s*([^\n!]+)/i)||g(/MANDANT\s*:?\s*([^\n!]+)/i)||g(/\bCompagnie\s*:?\s*([^\n!]+)/i)||g(/\bAssureur\s*:?\s*([^\n!]+)/i);
+  const SU=(soc||U).toUpperCase();
+  for(const[n,k]of ASSUREURS){if(SU.includes(n)){if(k)Object.assign(o,PRESETS[k]);else{o.assureur_court=titre(n);o.assureur_affiche=titre(n);}break;}}
+  if(R.code_gest&&o.destinataire&&!/gestionnaire/i.test(o.destinataire))o.destinataire+="\nCode gestionnaire : "+R.code_gest;
+  else if(R.code_gest&&o.destinataire&&/Code gestionnaire : $/.test(o.destinataire))o.destinataire+=R.code_gest;
+  const mails=(T.match(/[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}/gi)||[]).filter(x=>!/expertauto63/i.test(x)&&x!==o.mail_assureur);
+  if(mails.length)o.mail_expert=mails[0].replace(/^BCA/,"BCA");
+
+  /* ---- Véhicule ---- */
+  m=U.match(/\b([A-HJ-NP-TV-Z]{2})-(\d{3})-([A-HJ-NP-TV-Z]{2})\b/);if(m)o.immat=`${m[1]}-${m[2]}-${m[3]}`;
+  m=U.match(/(?:N°\s*DE\s*S[ÉE]RIE|VIN|N°\s*IDENT\w*)\s*:?\s*([A-HJ-NPR-Z0-9]{17})\b/);if(m)o.vin=m[1];
+  m=T.match(/(?:mise\s+(?:en\s+)?circ\w*\.?(?:\s*le)?)\s*:?\s*(\d{1,2})[\/.](\d{1,2})[\/.](\d{2,4})/i);if(m)o.mec=frD(m[1],m[2],m[3]);
+  m=U.match(/ENERGIE\s*:?\s*(GO|ES|EL|EH|EE|GH|GP|EG)\b/);if(m){const e={GO:"Gazole",ES:"Essence",EL:"Électrique",EH:"Hybride",EE:"Hybride",GH:"Hybride",GP:"GPL",EG:"GPL"}[m[1]];if(e)o.energie=e;}
+  const ma=g(/\bMarque\s*:\s*([A-Z][A-Z0-9\-]+)/i),mo=g(/\bMod[èe]le\s*:\s*([^\n]+?)(?:\s{2,}|\s+Puiss|$)/im);
+  if(ma){o.marque=ma.toUpperCase();if(mo)o.modele=mo.toUpperCase();}
+  else if(fmt==="lang"){const i=L.findIndex(s=>/Code\s*GTA/i.test(s));const l=i>=0?(L[i+1]||"").split("!")[0].trim():"";
+    if(l){const w=l.split(/\s+/);o.marque=w[0];o.modele=w.slice(1).join(" ").split(/\s+-\s+/)[0].replace(/\s+DPF$/,"");}}
+  else{const vv=g(/V[ée]hicule\s*:\s*([^\n]+?)(?:\s{2,}|$)/im);if(vv){const w=vv.split(/\s+/);o.marque=w[0];o.modele=w.slice(1).join(" ");}}
+
+  /* ---- Assuré ---- */
+  let nom=g(/ASSUR[ÉEée]E?\s*:\s*([A-ZÀ-Ü' \-]{3,}?)(?:\s{2,}|\s*!|\s+T[ÉE]L|$)/im)||g(/\bAffaire\s*:\s*([A-ZÀ-Ü' \-]{3,}?)(?:\s{2,}|$)/m)||g(/\b(?:L[ée]s[ée]|Propri[ée]taire)\s*:\s*([A-ZÀ-Ü' \-]{3,}?)(?:\s{2,}|$)/m);
+  if(nom){o.client_nom=nomPrenom(nom);
+    // adresse : dans les lignes qui suivent le nom
+    const NU=nom.toUpperCase();let iN=L.findIndex(s=>s.toUpperCase().includes(NU)&&/ASSUR/i.test(s));
+    if(iN<0)iN=L.findIndex(s=>s.toUpperCase().includes(NU)&&!/AFFAIRE|L[ÉE]S[ÉE]\s*:/i.test(s));
+    if(iN>=0){const seg=s=>s.split(/!|\s{3,}/).map(x=>x.trim()).filter(Boolean);
+      let rue="",ville="";
+      for(let i=iN+1;i<Math.min(L.length,iN+6);i++){for(const sg of seg(L[i])){
+        if(!rue&&/^\d+\s*(?:BIS|TER)?\s*,?\s*(RUE|AV|AVENUE|ALL[ÉE]E|CHEMIN|CHE|BD|BOULEVARD|IMPASSE|IMP|PLACE|PL|ROUTE|RTE|LIEU|LOT|R[ÉE]SIDENCE|QUAI|COURS|SQUARE|CHAUSS)/i.test(sg))rue=sg;
+        else if(rue&&!ville){const c=sg.match(/^(\d{5})\s+([A-ZÀ-Ü' \-]+?)(?:\s+T[ÉE]L.*)?$/i);if(c)ville=c[1]+" "+titre(c[2].trim());}}}
+      if(rue)o.client_rue=fmtRue(rue);if(ville)o.client_ville=ville;}}
+
+  /* ---- Sinistre ---- */
+  m=T.match(/SINISTRE\s+CONSTAT[ÉE]\s*:\s*([^\n]+)/i)||T.match(/Nature\s+(?:du\s+)?sinistre\s*:?\s*([^\n]+)/i);
+  const nat=(m?m[1]:"").toLowerCase();
+  R.sinistre=/gr[êe]le/.test(nat)?"grêle":/vandal/.test(nat)?"vandalisme":/vol/.test(nat)?"vol":/incend/.test(nat)?"incendie":/collis|choc|accident/.test(nat)?"collision":/bris|glace|pare/.test(nat)?"bris de glace":"dommages carrosserie";
+  m=T.match(/Accord\s+L[ée]s[ée]\s*:?\s*(OUI|NON)?/i);if(m&&m[1]!=="OUI"&&m[1]!=="oui")R.accord_lese=false;
+  if(!/EXPERT\s*AUTO\s*63/i.test(T))R.warn.push("Ce rapport ne cite pas Expert Auto 63 comme réparateur : vérifiez que c'est bien votre dossier.");
+
+  /* ---- Main-d'œuvre ---- */
+  const add=(c,h,t,tot)=>{if(!c||!(h>0))return;const ex=R.postes.find(p=>p.c===c);if(ex)return;R.postes.push({c,h,t,tot:isNaN(tot)?Math.round(h*t*100)/100:tot});};
+  // a) lignes « T2  4,40  95,00  418,00 » (Lang / AlphaExpert, Evalys…)
+  const reL=new RegExp("(?:^|!|\\s)(T\\s?[123]|M\\s?[123]|Peinture|Ingr[A-Za-zé.]*(?:\\s*\\([A-Z]+\\))?)\\s*:?\\s+"+NUM+"\\s*h?\\s*(?:x|×|\\*)?\\s*"+NUM+"\\s*(?:€\\s*)?(?:\\/\\s*h\\s*)?(?:HT\\s*)?=?\\s*"+NUM+"\\s*(?:€|HT)?\\s*(?:!|$)","i");
+  for(const l of L){for(const part of l.split("!")){const x=part.match(reL);if(!x)continue;const h=pn(x[2]),t=pn(x[3]),tot=pn(x[4]);
+    if(Math.abs(h*t-tot)<=0.06)add(code(x[1]),h,t,tot);}}
+  // b) tableau BCA « Total Heures / Taux Horaire » (T1 T2 T3 Peinture)
+  const th=T.match(/Total\s+Heures\s+([\d.,]+)\s+([\d.,]+)\s+([\d.,]+)\s+([\d.,]+)/i),tx=T.match(/Taux\s+Horaire\s+([\d.,]+)\s+([\d.,]+)\s+([\d.,]+)\s+([\d.,]+)/i);
+  if(th&&tx)["T1","T2","T3","P"].forEach((c,i)=>add(c,pn(th[i+1]),pn(tx[i+1])));
+  const ig=T.match(/INGR[ÉE]DIENTS?(?:\s+DE)?\s+PEINTURE\s*\(\s*([\d.,]+)\s*€?\s*\/\s*H\s*\)\s*([\d.,]+)/i);
+  if(ig&&!R.postes.some(p=>p.c==="I")){const t=pn(ig[1]),tot=pn(ig[2]);add("I",Math.round(tot/t*100)/100,t,tot);}
+  // c) heures sans taux (« T1 : 6,50 h ») : prises au taux de la grille
+  for(const l of L){const re=/\b(T\s?[123]|M\s?[123]|Peinture|Ingr[A-Za-zé.]*)\s*:?\s*([\d]+[.,]\d+)\s*h\b(?!\s*(?:x|×|\*))/gi;let y;
+    while((y=re.exec(l))){const c=code(y[1]);if(c&&!R.postes.some(p=>p.c===c)){const h=pn(y[2]);add(c,h,GRILLE[c]);R.postes.find(p=>p.c===c).sansTaux=true;}}}
+  // détail BCA : dépose / redressage
+  const dep=T.match(/D[ée]p\.?\s*Chgt\.?\s*Ctrl\.?\s+([\d.,]+)/i),red=T.match(/Redressage\s+([\d.,]+)\s+([\d.,]+)/i);
+  R.detail={T1:dep&&pn(dep[1])>0?"dépose / repose":"",T2:red&&pn(red[2])>0?"tôlerie":""};
+
+  /* ---- Pièces et forfaits ---- */
+  const lastNum=s=>{const a=s.match(new RegExp(NUM,"g"));return a?pn(a[a.length-1]):NaN;};
+  for(const l of L){for(const part of l.split("!")){if(/^\s*PI[ÈE]CES\b/i.test(part)&&!/COMMUNIQU/i.test(part)){const n=lastNum(part.replace(/\(tva[^)]*\)/i,""));if(n>0&&isNaN(R.piecesTot))R.piecesTot=n;}}}
+  // Lang : « LISTE DES FOURNITURES » … « TOTAL FOURNITURES »
+  let i0=L.findIndex(s=>/LISTE\s+DES\s+FOURNITURES/i.test(s)),i1=L.findIndex(s=>/TOTAL\s+FOURNITURES/i.test(s));
+  if(i0>=0){if(i1<0)i1=L.length;for(let i=i0+1;i<i1;i++){const left=L[i].split("!")[0].trim();
+    const x=left.match(new RegExp("^(.+?)\\s+"+PRIX+"\\s+([A-Z]{1,2}|\\d{2})?\\s*$"));
+    if(x&&!/^Libell/i.test(x[1])&&/[A-Z]{2}/i.test(x[1]))R.pieces.push({lib:x[1].trim(),q:1,pu:pn(x[2])});}
+    if(isNaN(R.piecesTot)){const t=(L[i1]||"").match(new RegExp("TOTAL\\s+FOURNITURES[^\\d]*"+NUM,"i"));if(t)R.piecesTot=pn(t[1]);}}
+  // BCA / tableau « Action Libellé Prix Q »
+  i0=L.findIndex(s=>/^\s*Action\s+Libell/i.test(s));
+  if(i0>=0&&!R.pieces.length){for(let i=i0+1;i<L.length;i++){if(/^\s*(Page\s+\d|MAIN\b|MONTANTS)/i.test(L[i]))break;
+    const x=L[i].match(new RegExp("^\\s*(?:[CEDRPN]\\s+)?(.+?)\\s+"+PRIX+"\\s+(\\d+(?:[.,]\\d+)?)\\s+\\d+(?:\\s+\\d+)*\\s*$"));
+    if(x&&/[A-Z]{2}/i.test(x[1]))R.pieces.push({lib:x[1].trim(),q:pn(x[3])||1,pu:pn(x[2])});}}
+  // générique : lignes « FORFAIT … 150,00 »
+  if(!R.pieces.length)for(const l of L){const x=l.split("!")[0].match(new RegExp("^\\s*(FORFAIT[^\\d\\n]*?)\\s+"+PRIX+"\\b"));if(x)R.pieces.push({lib:x[1].trim(),q:1,pu:pn(x[2])});}
+  const sp=Math.round(R.pieces.reduce((a,p)=>a+p.q*p.pu,0)*100)/100;
+  if(!isNaN(R.piecesTot)&&R.pieces.length&&Math.abs(sp-R.piecesTot)>0.05){
+    const forf=R.pieces.filter(p=>/FORFAIT/i.test(p.lib)),sf=forf.reduce((a,p)=>a+p.q*p.pu,0);
+    R.pieces=forf;if(R.piecesTot-sf>0.004)R.pieces.unshift({lib:"Pièces et fournitures",q:1,pu:Math.round((R.piecesTot-sf)*100)/100,groupe:true});}
+  if(!R.pieces.length&&R.piecesTot>0)R.pieces.push({lib:"Pièces et fournitures",q:1,pu:R.piecesTot,groupe:true});
+
+  /* ---- Totaux de l'expert ---- */
+  const tot=(...res)=>{for(const re of res){const x=T.match(re);if(x){const n=pn(x[1]);if(!isNaN(n))return n;}}return NaN;};
+  R.ht=tot(new RegExp("TOTAL\\s+HT\\s*:?\\s*"+NUM,"i"),new RegExp("TOTAL\\s+HTVA\\s*:?\\s*"+NUM,"i"),new RegExp("MONTANT\\s+DES\\s+TRAVAUX\\s+HT[^\\d\\n]*"+NUM,"i"),new RegExp("TOTAL\\s+H\\.T\\.?\\s*:?\\s*"+NUM,"i"));
+  R.ttc=tot(new RegExp("TOTAL\\s+TTC\\s*:?\\s*"+NUM,"i"),new RegExp("TVAC\\s*(?:\\(\\d\\))?\\s*:?\\s*"+NUM,"i"),new RegExp("Montant\\s+de\\s+la\\s+r[ée]paration\\s*:?\\s*"+NUM,"i"),new RegExp("TOTAL\\s+T\\.T\\.C\\.?\\s*:?\\s*"+NUM,"i"));
+  R.net=tot(new RegExp("NET\\s+A\\s+PAYER[^:\\n]*:\\s*"+NUM,"i"),new RegExp("charge\\s+assureur\\s*:?\\s*"+NUM,"i"));
+  R.franchise=tot(new RegExp("FRANCHISE\\s*:?\\s*"+NUM,"i"),new RegExp("charge\\s+assur[ée]\\s*:?\\s*"+NUM,"i"));
+  if(isNaN(R.franchise)&&R.ttc>0&&R.net>0&&R.ttc-R.net>0.004)R.franchise=Math.round((R.ttc-R.net)*100)/100;
+  if(isNaN(R.net)&&R.ttc>0)R.net=Math.round((R.ttc-(R.franchise||0))*100)/100;
+  R.fmt=fmt;
+  return{o,R};
+}
+
+/* Construit les lignes de la facture à partir du rapport.
+   mode "expert" : taux de l'expert (le total tombe sur celui de l'expert) ; "grille" : taux du garage. */
+function lignesRapport(R,mode){
+  const P={};R.postes.forEach(p=>P[p.c]={...p,t:mode==="grille"?GRILLE[p.c]:p.t});
+  const out=[],f2=h=>h.toFixed(2).replace(".",",");
+  const mo=(c,lib,ref)=>({designation:"Main-d'œuvre "+lib,ref:ref||"",qte:f2(P[c].h),pu:String(r2(P[c].t)),heures:true});
+  if(P.T1)out.push(mo("T1","carrosserie T1",R.detail&&R.detail.T1?f2(P.T1.h)+" h "+R.detail.T1:""));
+  // T2, T3 et peinture au même taux : une seule ligne, détail dans la référence (comme les factures 49 et 50)
+  const grp=["T2","T3","P"].filter(c=>P[c]);const deja=new Set();
+  for(const c of grp){if(deja.has(c))continue;const same=grp.filter(k=>!deja.has(k)&&Math.abs(P[k].t-P[c].t)<0.001);same.forEach(k=>deja.add(k));
+    const h=same.reduce((a,k)=>a+P[k].h,0);const nomL=same.includes("T3")&&!same.includes("T2")?"carrosserie T3":(same.length===1&&c==="P"?"peinture":"carrosserie T2");
+    const ref=same.length>1?same.map(k=>f2(P[k].h)+" h "+(k==="P"?"peinture":k==="T3"?"T3":(R.detail&&R.detail.T2)||"tôlerie")).join(" + "):"";
+    out.push({designation:"Main-d'œuvre "+nomL,ref,qte:f2(h),pu:String(r2(P[c].t)),heures:true});}
+  ["M1","M2","M3"].forEach(c=>{if(P[c])out.push(mo(c,"mécanique "+c.replace("M","T")));});
+  if(P.I)out.push({designation:"Ingrédients peinture",ref:"",qte:f2(P.I.h),pu:String(r2(P.I.t)),heures:true});
+  const forf=R.pieces.filter(p=>/FORFAIT/i.test(p.lib)),pcs=R.pieces.filter(p=>!/FORFAIT/i.test(p.lib));
+  let pl=pcs.map(p=>({designation:p.groupe?p.lib:phrase(p.lib),ref:p.groupe?"Selon rapport d'expertise":"",qte:String(p.q).replace(".",","),pu:String(r2(p.pu)),heures:false}));
+  const fl=forf.length>1?[{designation:"Forfaits "+forf.map(p=>accents(p.lib.replace(/^FORFAITS?\s*/i,"")).toLowerCase()).join(", "),ref:forf.map(p=>eur(p.pu*p.q).replace(/\s?€$/," €")).join(" + ")+" HT",qte:"1",pu:String(Math.round(forf.reduce((a,p)=>a+p.pu*p.q,0)*100)/100),heures:false}]
+    :forf.map(p=>({designation:phrase(p.lib),ref:"",qte:String(p.q),pu:String(r2(p.pu)),heures:false}));
+  if(out.length+pl.length+fl.length>5&&pl.length>1){const s=Math.round(pcs.reduce((a,p)=>a+p.pu*p.q,0)*100)/100;
+    pl=[{designation:"Pièces et fournitures",ref:pcs.length+" articles selon rapport",qte:"1",pu:String(s),heures:false}];}
+  return out.concat(pl,fl);
+}
+function ecartsGrille(R){return R.postes.filter(p=>!p.sansTaux&&Math.abs(p.t-GRILLE[p.c])>0.001).map(p=>`${NOMPOSTE[p.c]} : expert ${eur(p.t)} / garage ${eur(GRILLE[p.c])}`);}
+
+function parseRap2(t){const o=parseRap(t),x=parseExpertise(t);Object.assign(o,x.o);return{o,R:x.R};}
 const LABELS={immat:"immatriculation",vin:"VIN",mec:"mise en circulation",marque:"marque",modele:"modèle",energie:"énergie",client_nom:"nom",client_rue:"adresse",client_ville:"ville",
-  assureur_court:"assureur",n_contrat:"contrat",n_client:"n° client",n_sinistre:"n° sinistre",date_sinistre:"date du sinistre",exp_num:"n° de rapport",mail_assureur:"mail assurance"};
+  assureur_court:"assureur",n_contrat:"contrat",n_client:"n° client",n_sinistre:"n° sinistre",date_sinistre:"date du sinistre",exp_num:"n° de rapport",exp_date:"date du rapport",mail_assureur:"mail assurance",mail_expert:"mail expert",destinataire:"destinataire"};
 function applyRead(kind,text){
-  const o=kind==="cg"?parseCG(text):kind==="att"?parseAtt(text):parseRap(text);
+  let R=null,o;if(kind==="rap"){const x=parseRap2(text);o=x.o;R=x.R;}else o=kind==="cg"?parseCG(text):parseAtt(text);
   const pris=[],gardes=[];
   for(const[k,v]of Object.entries(o)){if(!v)continue;
     if(S[k]&&String(S[k]).trim()&&!(k in PRESETS.autre)){if(String(S[k]).trim()!==String(v).trim())gardes.push(LABELS[k]||k);continue;}
     if(k in PRESETS.autre&&S[k])continue;
     S[k]=v;const el=$(`[data-k="${k}"]`);if(el){el.value=v;el.classList.add("lu");}if(LABELS[k])pris.push(LABELS[k]);}
+  if(R&&(R.postes.length||R.pieces.length)){appliquerRapport(R,pris,gardes);return;}
   log(`Lecture ${KINDS[kind].toLowerCase()} : ${pris.length?pris.join(", "):"rien de trouvé"}`);renderHist();header();scheduleSave();
   ocrBox(pris.length?`<b>Trouvé :</b> ${esc([...new Set(pris)].join(", "))}.<br>Vérifiez les champs en vert dans les onglets Client et Véhicule.${gardes.length?`<br>Déjà remplis, non modifiés : ${esc(gardes.join(", "))}.`:""}`
     :"Rien de sûr n'a été trouvé sur ce document. Essayez une photo plus nette, à plat et bien éclairée, ou complétez à la main.");
 }
+
+function setK(k,v){S[k]=v;const el=$(`[data-k="${k}"]`);if(el){el.value=v;el.classList.add("lu");}}
+function appliquerRapport(R,pris,gardes){
+  const r2n=x=>isNaN(x)||x==null?null:r2(x);
+  S.rap={cabinet:R.cabinet,postes:R.postes,pieces:R.pieces,detail:R.detail,ht:r2n(R.ht),ttc:r2n(R.ttc),net:r2n(R.net),franchise:r2n(R.franchise),
+    accord_lese:R.accord_lese!==false,warn:R.warn,mode:"expert"};
+  if(S.genre!=="carro"&&!/bris|glace|pare/.test(R.sinistre)){setK("genre","carro");if(!S.date_or)setK("date_or",moins5(S.date));}
+  if(S.sinistre_type==="bris de glace"&&R.sinistre!=="bris de glace")setK("sinistre_type",R.sinistre);
+  if(!S.objet)setK("objet",S.genre==="carro"?"Réparation carrosserie":"Remplacement pare-brise");
+  let lignes=true;
+  if(S.lignes.length&&!confirm("Ce dossier a déjà des lignes de travaux.\nLes remplacer par celles du rapport d'expertise ?"))lignes=false;
+  if(lignes){S.lignes=lignesRapport(S.rap,"expert");lignesUI();}
+  renderTot();
+  log(`Lecture du rapport d'expertise${R.cabinet?" ("+R.cabinet+")":""} : ${pris.length?pris.join(", "):"références déjà remplies"}${lignes?", "+S.lignes.length+" lignes de travaux":""}`);
+  renderHist();header();scheduleSave();
+  ocrBox(`<b>Rapport lu${R.cabinet?" — "+esc(R.cabinet):""}.</b><br>${pris.length?"Repris : "+esc([...new Set(pris)].join(", "))+".<br>":""}${gardes.length?"Déjà remplis, non modifiés : "+esc(gardes.join(", "))+".<br>":""}${lignes?"Les travaux sont remplis (onglet Travaux) :<br>"+S.lignes.map(l=>"• "+esc(l.designation)+(l.heures?" — "+esc(l.qte)+" h":"")+" : "+eur(r2(num(l.qte)*num(l.pu)))+" HT").join("<br>"):""}<div id="rapCmp2"></div>`);
+  renderRapCmp();
+}
+function controleRapport(){const R=S.rap;if(!R)return"";const c=calc(),h=[];
+  if(R.ht!=null||R.ttc!=null){const dHT=R.ht!=null?r2(c.ht-R.ht):null,dTTC=R.ttc!=null?r2(c.ttc-R.ttc):null;
+    const ok=(dHT===null||Math.abs(dHT)<0.005)&&(dTTC===null||Math.abs(dTTC)<=0.02);
+    h.push(ok?`<div class="ok">✅ Total conforme à l'expert : ${R.ht!=null?eur(R.ht)+" HT":""}${R.ht!=null&&R.ttc!=null?" / ":""}${R.ttc!=null?eur(R.ttc)+" TTC":""}${dTTC&&Math.abs(dTTC)>=0.005?` (1 à 2 centimes d'arrondi sur la TVA)`:""}.</div>`
+      :`<div class="warn"><b>⚠️ Le total ne tombe pas sur celui de l'expert.</b><br>Expert : ${R.ht!=null?eur(R.ht)+" HT":""}${R.ttc!=null?" / "+eur(R.ttc)+" TTC":""}<br>Facture : ${eur(c.ht)} HT / ${eur(c.ttc)} TTC<br>Écart : ${eur(dHT!==null?dHT:dTTC)}${dHT!==null?" HT":" TTC"}${R.mode==="grille"?"<br>Normal : les lignes sont au tarif du garage. L'écart reste à la charge du client si l'assureur ne paie que le chiffrage de l'expert.":"<br>Vérifiez les heures et les prix dans les lignes."}</div>`);}
+  const ec=ecartsGrille(R);
+  if(ec.length)h.push(`<div class="warn"><b>Taux de l'expert différents de votre grille :</b><br>• ${ec.map(esc).join("<br>• ")}<br>Lignes actuellement ${R.mode==="grille"?"<b>au tarif du garage</b>":"<b>aux taux de l'expert</b>"}.
+    <div style="margin-top:8px"><button class="btn c s" data-rapmode="${R.mode==="grille"?"expert":"grille"}">${R.mode==="grille"?"Revenir aux taux de l'expert":"Mettre au tarif du garage"}</button></div></div>`);
+  if(R.postes.some(p=>p.sansTaux))h.push(`<div class="warn">Le rapport donne des heures sans taux horaire : le taux de votre grille a été mis. Vérifiez-le.</div>`);
+  if(R.franchise>0)h.push(`<div class="warn"><b>Franchise : ${eur(R.franchise)}</b> à faire payer par le client.${R.net!=null?" Net à payer par l'assureur : "+eur(R.net)+".":""}</div>`);
+  else if(R.franchise===0)h.push(`<div class="ok">Pas de franchise : l'assureur paie la totalité${R.net!=null?" ("+eur(R.net)+")":""}.</div>`);
+  if(!R.accord_lese)h.push(`<div class="warn">« Accord lésé : NON » sur le rapport : le client doit signer l'ordre de réparation et la cession de créance.</div>`);
+  (R.warn||[]).forEach(w=>h.push(`<div class="warn">${esc(w)}</div>`));
+  return h.join("");}
+function renderRapCmp(){const html=controleRapport();["#rapCmp","#rapCmp2"].forEach(id=>{const e=$(id);if(e)e.innerHTML=html;});
+  $$("[data-rapmode]").forEach(b=>b.onclick=()=>{S.rap.mode=b.dataset.rapmode;S.lignes=lignesRapport(S.rap,S.rap.mode);lignesUI();renderTot();
+    log(S.rap.mode==="grille"?"Lignes mises au tarif du garage":"Lignes remises aux taux de l'expert");renderHist();scheduleSave();});}
 
 /* ====================================================================
    DOCUMENTS, PDF ET ENVOI
@@ -1249,7 +1452,7 @@ function mailTexte(){const d=D(),c=calc();
 
 Veuillez trouver ci-joint le dossier de votre assuré${S.client_civ==="Mme"?"e":""} ${S.client_civ} ${S.client_nom} concernant le véhicule ${vehNom()} immatriculé ${S.immat} : ${S.objet.toLowerCase()}.
 
-${refs.length?refs.join("\n")+"\n\n":""}Montant : ${eur(c.ht)} HT, soit ${eur(c.ttc)} TTC.
+${refs.length?refs.join("\n")+"\n\n":""}Montant : ${eur(c.ht)} HT, soit ${eur(c.ttc)} TTC${S.rap&&S.rap.ht!=null&&Math.abs(c.ht-S.rap.ht)<0.005?", conforme au chiffrage de l'expert":""}.${S.rap&&S.rap.franchise>0?`\nFranchise de ${eur(S.rap.franchise)} à la charge de l'assuré${S.client_civ==="Mme"?"e":""} : net à régler ${eur(r2(c.ttc-S.rap.franchise))}.`:""}
 
 Pièces jointes (un seul PDF) :
 - ${pj.join("\n- ")}
