@@ -310,6 +310,24 @@ table.tb{width:100%;border-collapse:collapse;font-size:13.5px}
 .sheet.pj .pjhead img{width:34mm}.sheet.pj .pjhead .r{text-align:right;font-weight:700}.sheet.pj .pjhead .r .a{font-size:15pt}.sheet.pj .pjhead .r .b{color:#3DDC2F;font-size:11pt;margin-top:1mm}
 .sheet.pj .pjimg{position:absolute;left:8mm;right:8mm;top:38mm;bottom:22mm;display:flex;align-items:center;justify-content:center}
 .sheet.pj .pjimg img{max-width:100%;max-height:100%;object-fit:contain;border:1px solid #ddd}
+
+/* Signature en ligne */
+.sheet.ces .sigcli{display:block;max-height:10.5mm;max-width:55mm;margin-top:.5mm}
+.sheet.ces .sigel{position:absolute;left:2.5mm;bottom:1.5mm;font-size:6.8pt;line-height:1.25;color:#222}
+.sheet.ces .parsig{font-size:7pt;font-weight:700;margin-top:1mm}
+.sheet.dos .sigcli{position:absolute;right:3mm;top:1mm;max-height:10.5mm;max-width:40mm}
+.sheet.dos .sigel{position:absolute;right:2.5mm;bottom:1mm;text-align:right;max-width:58mm;font-size:6.3pt;line-height:1.2;color:#222}
+.sheet.fac .sigcli{height:8.5mm;max-width:30mm;vertical-align:bottom}
+.sheet.fac .sigel{display:inline-block;font-size:6.3pt;line-height:1.2;margin-left:2mm;vertical-align:bottom;white-space:normal;width:55mm}
+.sgtop{background:#000;color:#fff;padding:calc(env(safe-area-inset-top) + 12px) 14px 12px;display:flex;align-items:center;gap:10px}
+.sgtop b{font-size:17px}.sgtop small{display:block;color:var(--v);font-weight:700;font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+.pad{position:relative;border:2px dashed #9aa09a;border-radius:12px;background:#fff;height:190px;touch-action:none}
+.pad canvas{width:100%;height:100%;display:block;touch-action:none}
+.pad .ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#9aa09a;font-size:15px;pointer-events:none}
+.sgst{display:inline-block;padding:3px 9px;border-radius:20px;font-size:12.5px;font-weight:700}
+.sgst.att{background:#fff3cd;color:#6b4e00}.sgst.ok{background:#dff7da;color:#155c0d}
+.dos .sgm{color:#155c0d;font-weight:700}
+.dos .sgw{color:#6b4e00;font-weight:700}
 </style>
 </head>
 <body>
@@ -681,6 +699,12 @@ table.tb{width:100%;border-collapse:collapse;font-size:13.5px}
           <button class="btn v" id="bPdf">Créer le PDF</button>
         </div>
       </div>
+      <div class="card" id="cSig">
+        <h2>Signature du client</h2>
+        <div id="sigEtat"></div>
+        <button class="btn v full" id="bSig" style="margin-top:10px">✍️ Envoyer la cession à signer</button>
+        <div class="hint">Le client reçoit un lien par SMS ou par mail, signe avec le doigt, et la cession signée revient toute seule ici.</div>
+      </div>
       <div class="card">
         <h2>Envoi à l'assurance</h2>
         <div class="hint" style="margin-top:0">1. Créez le PDF. 2. Choisissez Mail, collez l'adresse et le texte. 3. Revenez ici et appuyez sur « C'est envoyé ».</div>
@@ -708,6 +732,11 @@ table.tb{width:100%;border-collapse:collapse;font-size:13.5px}
     <button class="btn c" id="bPrev">‹ Précédent</button>
     <button class="btn v" id="bNext">Suivant ›</button>
   </div>
+</div>
+
+<div id="vSign" class="hide">
+  <div class="sgtop"><div><b>EXPERT AUTO 63</b><small>Signature de document</small></div></div>
+  <div class="wrap" id="sgBody" style="padding-bottom:40px"></div>
 </div>
 
 <div class="saved" id="toast"></div>
@@ -739,7 +768,7 @@ const STATUTS={devis:["Devis","b-devis"],cours:["En cours","b-cours"],verif:["À
 function today(){const d=new Date();return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10);}
 function blankS(){
   return {numero:"",date:today(),objet:"",sinistre_type:"bris de glace",genre:"pb",date_or:"",or_auto:true,
-    n_sinistre:"",date_sinistre:"",exp_num:"",exp_date:"",client_civ:"M.",client_nom:"",client_rue:"",client_ville:"",pro:false,
+    n_sinistre:"",date_sinistre:"",exp_num:"",exp_date:"",client_civ:"M.",client_nom:"",client_rue:"",client_ville:"",client_tel:"",client_mail:"",pro:false,
     assureur_court:"",assureur_affiche:"",assureur_ligne:"",n_client:"",n_contrat:"",destinataire:"",mail_assureur:"",mail_expert:"",
     marque:"",modele:"",immat:"",mec:"",vin:"",energie:"Gazole",lignes:[],note:"",
     d_fac:true,d_or:true,d_ces:true,d_not:true,d_pj:true,dv_num:"",dv_date:"",dv_valid:"30",dv_ok:false};
@@ -824,7 +853,7 @@ function ordre(d,c){
 <tr><td colspan="4" class="r"><b>TOTAL TTC</b></td><td class="r"><b>${eur(c.ttc)}</b></td></tr></table></div>`;
   const corps=`${VEH()}${trav}<div class="corps"><p>Je soussigné${d.e_} <b>${d.nom}</b>, propriétaire du véhicule ci-dessus, donne ordre à la société <b>EXPERT AUTO 63</b> de procéder aux travaux décrits ci-dessus (${d.objet.toLowerCase()}) pour un montant de <b>${eur(c.ttc)} TTC</b>, conformément à la facture n° ${d.N}.</p>
 <p class="small">Le véhicule est confié au garage pour la durée des travaux. Toute prestation complémentaire fera l'objet d'un accord préalable du client. Les sommes non prises en charge par l'assureur (franchise éventuelle) restent dues par le client.</p></div>
-<div class="sig"><div><b>Le client — « Bon pour accord »</b>Fait à Riom, le ${d.DOR}<br>Signature :</div><div><b>EXPERT AUTO 63</b>Cachet et signature :${T}</div></div>`;
+<div class="sig"><div><b>Le client — « Bon pour accord »</b>Fait à Riom, le ${d.DOR}<br>Signature :<!--SIGCLI--></div><div><b>EXPERT AUTO 63</b>Cachet et signature :${T}</div></div>`;
   const serre=S.lignes.length>4?" serre":"";
   return SHEET("dos"+serre,`${HEAD("ORDRE DE RÉPARATION",d.N,d.objet,d.DOR)}${PARTIES("CLIENT / ASSURÉ",d.client_html)}${corps}<div class="foot">${PIED_DOS}</div>`);
 }
@@ -848,7 +877,7 @@ ${A(1,"Objet de la cession")}
 <p>Conformément aux articles 1321 et suivants du Code civil, le cédant cède au cessionnaire, qui l'accepte, la créance d'indemnité qu'il détient sur l'assureur au titre du sinistre${ref_sin}, dans la limite du montant fixé à l'article 2. La cession comprend les accessoires de la créance (article 1321, alinéa 3, du Code civil).</p>
 ${A(2,"Montant de la créance cédée")}
 <p>La créance est cédée à hauteur du montant de la facture n° ${d.N} du ${d.DATE}, soit <b>${eur(c.ht)} HT</b>, TVA 20 % <b>${eur(c.tva)}</b>, soit <b>${eur(c.ttc)} TTC</b>.</p></div>
-<div class="paraphe">Initiales du cédant :</div><div class="foot">${PIED_DOS}</div><div class="pg">Page 1/2</div>`;
+<div class="paraphe">Initiales du cédant :<!--PARAPHE--></div><div class="foot">${PIED_DOS}</div><div class="pg">Page 1/2</div>`;
   const p2=`<div class="mini"><img src="${LOGO}"><div class="r"><div class="a">CESSION DE CRÉANCE N° ${d.N} (suite)</div><div class="b">${d.civ} ${d.nom} — ${d.veh} ${d.immat}</div></div></div>
 <div class="bar"><div class="v"></div><div class="k"></div></div>
 <div class="corps">
@@ -869,7 +898,7 @@ ${A(9,"Frais")}
 ${A(10,"Droit applicable et litiges")}
 <p>Le présent acte est soumis au droit français. En cas de difficulté, les parties rechercheront d'abord une solution amiable. À défaut, le litige sera porté devant la juridiction compétente selon les règles de droit commun. Le cédant, s'il agit en qualité de consommateur, peut recourir gratuitement à un médiateur de la consommation.</p>
 <p style="margin-top:2.5mm">Fait à Riom, le ${d.DATE}, en deux exemplaires originaux, dont un pour chaque partie.</p></div>
-<div class="sig"><div><b>Le cédant — ${d.civ} ${d.nom}</b>Mention manuscrite : «${NB}Lu et approuvé, bon pour cession de créance${NB}»<br>Signature :</div>
+<div class="sig"><div><b>Le cédant — ${d.civ} ${d.nom}</b>Mention manuscrite : «${NB}Lu et approuvé, bon pour cession de créance${NB}»<br>Signature :<!--SIGCLI--></div>
 <div><b>Le cessionnaire — EXPERT AUTO 63</b>M. Sofiane Tahidousti, gérant<br>«${NB}Lu et approuvé, bon pour acceptation${NB}»<br>Cachet et signature :<img class="tampon" src="${TAMPON}"></div></div>
 <div class="foot">${PIED_DOS}</div><div class="pg">Page 2/2</div>`;
   return SHEET("ces",p1)+SHEET("ces",p2);
@@ -895,7 +924,7 @@ function notification(d,c){
 function devisDoc(d,c){
   const dd=fr(S.dv_date||today()),jusq=fr(plusJours(S.dv_date||today(),num(S.dv_valid)||30));
   const regl=[`Devis valable ${num(S.dv_valid)||30} jours, jusqu'au ${jusq}`,REGL_LIGNE,
-    `<b>Bon pour accord</b> — date et signature du client :`,`<span style="display:inline-block;width:88mm;border-bottom:1px solid #999;height:9mm"></span>`];
+    `<b>Bon pour accord</b> — date et signature du client :`,`<span style="display:inline-block;width:88mm;border-bottom:1px solid #999;height:9mm;white-space:nowrap"><!--SIGCLI--></span>`];
   const cachet=`<div style="position:relative;height:0"><div style="position:absolute;left:-104mm;top:-31mm;width:90mm"><div style="font-weight:700;font-size:9pt">Cachet et signature :</div><img src="${TAMPON}" style="height:26mm;margin-top:2mm;mix-blend-mode:multiply"></div></div>`;
   const pied='EXPERT AUTO 63 — SARL au capital de 10 000 € — Siège social : 3 impasse des Clématites, 63530 Volvic — RCS Clermont-Ferrand 999 578 743<br>Devis gratuit. Les prix des pièces sont susceptibles d\'évoluer après la date de validité du devis.';
   return SHEET("fac",`${HEAD("DEVIS",esc(S.dv_num||"—"),d.objet,dd)}${PARTIES("CLIENT",d.client_html)}${VEH()}
@@ -961,7 +990,13 @@ const Cloud={
   async nextDevis(){const F=this.F;const ref=F.doc(this.db,"meta","compteur_devis");
     return F.runTransaction(this.db,async tx=>{const s=await tx.get(ref);const n=(s.exists()?s.data().dernier:0)+1;tx.set(ref,{dernier:n});return n;});},
   async meta(k){const F=this.F;const s=await F.getDoc(F.doc(this.db,"meta",k));return s.exists()?{k,v:s.data().v}:null;},
-  async setMeta(k,v){const F=this.F;await F.setDoc(F.doc(this.db,"meta",k),{v});}
+  async setMeta(k,v){const F=this.F;await F.setDoc(F.doc(this.db,"meta",k),{v});},
+  /* Signatures en ligne : un document par lien, l'identifiant du lien est secret */
+  async sigCreate(t,o){const F=this.F;await F.setDoc(F.doc(this.db,"signatures",t),Object.assign(o,{creeLe:F.serverTimestamp(),expire:F.Timestamp.fromMillis(Date.now()+30*864e5)}));},
+  async sigGet(t){const F=this.F;const s=await F.getDoc(F.doc(this.db,"signatures",t));return s.exists()?Object.assign({id:t},s.data()):null;},
+  async sigAnnule(t){const F=this.F;try{await F.updateDoc(F.doc(this.db,"signatures",t),{statut:"annule"});}catch(e){}},
+  async sigSigne(t,o){const F=this.F;await F.updateDoc(F.doc(this.db,"signatures",t),Object.assign(o,{statut:"signee",signeLe:F.serverTimestamp()}));},
+  sigWatch(cb){const F=this.F;return F.onSnapshot(F.query(F.collection(this.db,"signatures"),F.where("statut","==","signee")),s=>cb(s.docs.map(d=>Object.assign({id:d.id},d.data()))),e=>console.warn("signatures",e.code));}
 };
 let DB=Local;
 
@@ -984,7 +1019,7 @@ async function seedArchives(){
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 function savedDot(){const e=$("#eSous");if(!e)return;e.dataset.ok="1";clearTimeout(savedDot.t);savedDot.t=setTimeout(()=>{e.dataset.ok="";},1600);}
 let toastT;function toast(t){const e=$("#toast");e.textContent=t;e.classList.add("on");clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove("on"),2200);}
-function show(v){["#vLogin","#vMain","#vEdit"].forEach(x=>$(x).classList.toggle("hide",x!==v));window.scrollTo(0,0);}
+function show(v){["#vLogin","#vMain","#vEdit","#vSign"].forEach(x=>$(x).classList.toggle("hide",x!==v));window.scrollTo(0,0);}
 function modal(t,html){$("#mT").textContent=t;$("#mB").innerHTML=html;$("#modal").classList.remove("hide");}
 $("#mX").onclick=()=>$("#modal").classList.add("hide");
 const nowIso=()=>new Date().toISOString();
@@ -1004,7 +1039,7 @@ let ALL=[],FILTRE="tous";
 let CUR=null,S=blankS(),PHOTOS=[],TAB="photos",saveT=null;
 const ORDRE=["photos","client","vehicule","travaux","envoi"];
 function setTab(t){TAB=t;$$(".tab").forEach(b=>b.classList.toggle("on",b.dataset.t===t));$$("[data-p]").forEach(p=>p.classList.toggle("hide",p.dataset.p!==t));
-  const i=ORDRE.indexOf(t);$("#bPrev").disabled=i===0;$("#bNext").textContent=i===ORDRE.length-1?"Terminer ✓":"Suivant ›";window.scrollTo(0,0);if(t==="envoi")renderChecks();}
+  const i=ORDRE.indexOf(t);$("#bPrev").disabled=i===0;$("#bNext").textContent=i===ORDRE.length-1?"Terminer ✓":"Suivant ›";window.scrollTo(0,0);if(t==="envoi"){renderChecks();renderSig();}}
 $$(".tab").forEach(b=>b.onclick=()=>setTab(b.dataset.t));
 $("#bPrev").onclick=()=>{const i=ORDRE.indexOf(TAB);if(i>0)setTab(ORDRE[i-1]);};
 function vide(d,photos){const x=d.S||{};return !d.archive&&!x.numero&&!x.dv_num&&!x.client_nom&&!x.immat&&!x.marque&&!x.vin&&!x.n_contrat&&!(x.lignes||[]).length&&!photos;}
@@ -1041,7 +1076,7 @@ function header(){$("#eTitre").textContent=(S.numero?"N° "+S.numero+" · ":"")+
 function fillForm(){
   $$("[data-k]").forEach(el=>{const k=el.dataset.k;el.classList.remove("lu");if(el.type==="checkbox")el.checked=!!S[k];else el.value=S[k]??"";});
   $("#statut").value=CUR.statut||"cours";$("#preset").value="";
-  lignesUI();renderPhotos();renderTot();renderHist();renderPay();header();dvEtat();
+  lignesUI();renderPhotos();renderTot();renderHist();renderPay();header();dvEtat();renderSig();
   $("#archNote").innerHTML=CUR.archive&&!S.lignes.length?`<div class="warn">Dossier fait avant l'application : montant de la facture <b>${eur(CUR.ttc_archive)}</b> TTC. Le détail des lignes n'a pas été repris : ajoutez-les seulement si vous devez refaire les documents.</div>`:"";
 }
 $$("[data-k]").forEach(el=>{
@@ -1406,7 +1441,7 @@ function manque(){const m=[];if(!S.numero)m.push("le n° de facture (bouton « A
 function renderChecks(){const m=manque();$("#checks").innerHTML=m.length?`<div class="warn"><b>À compléter avant l'envoi :</b><br>• ${m.map(esc).join("<br>• ")}</div>`:`<div class="ok">Tout est rempli. Total ${eur(calc().ttc)} TTC.</div>`;}
 function pjSheets(){if(!S.d_pj)return"";const d=D();const pj=PHOTOS.filter(p=>p.kind!=="rap"||true);
   return pj.map((p,i)=>SHEET("pj",`<div class="pjhead"><img src="${LOGO}"><div class="r"><div class="a">PIÈCE JOINTE ${i+1} — DOSSIER N° ${d.N}</div><div class="b">${KINDS[p.kind]} — ${d.civ} ${d.nom} — ${d.immat}</div></div></div><div class="bar"><div class="v"></div><div class="k"></div></div><div class="pjimg"><img src="${p.data}"></div><div class="foot">${PIED_DOS}</div>`)).join("");}
-function docsHTML(){const d=D(),c=calc();let h="";if(S.d_fac)h+=facture(d,c);if(S.d_or)h+=ordre(d,c);if(S.d_ces)h+=cession(d,c);if(S.d_not)h+=notification(d,c);return h+pjSheets();}
+function docsHTML(){const d=D(),c=calc();let h="";if(S.d_fac)h+=facture(d,c);if(S.d_or)h+=(sigOk("or")?docSigne("or"):ordre(d,c));if(S.d_ces)h+=(sigOk("ces")?docSigne("ces"):cession(d,c));if(S.d_not)h+=notification(d,c);return h+pjSheets();}
 $("#bVoir").onclick=()=>{const w=Math.min(window.innerWidth,820)-40;document.documentElement.style.setProperty("--s",(w/794).toFixed(4));
   modal("Documents du dossier",docsHTML()||'<p class="hint">Cochez au moins un document.</p>');};
 $("#bNum").onclick=async()=>{if(S.numero&&!confirm(`Ce dossier a déjà le n° ${S.numero}. En attribuer un nouveau ?`))return;
@@ -1520,7 +1555,7 @@ function donut(p,size=96){const r=38,c=2*Math.PI*r,v=Math.max(0,Math.min(1,p));
   <text x="50" y="49" text-anchor="middle" font-size="19" font-weight="800" fill="#fff">${Math.round(v*100)}%</text><text x="50" y="65" text-anchor="middle" font-size="9.5" fill="#b9f5b1" font-weight="700">ENCAISSÉ</text></svg>`;}
 function dosItem(d){const[s,c]=STATUTS[d.statut]||STATUTS.cours;const S1=d.S;
   return `<div class="dos" data-id="${esc(d.id)}"><div class="num"><small>N°</small>${esc(S1.numero||"—")}</div>
-    <div class="inf"><b>${esc(S1.client_nom||"Nouveau client")}</b><span>${esc([S1.immat,titre((S1.marque+" "+S1.modele).trim())].filter(Boolean).join(" · ")||"Véhicule à compléter")}</span><span>${esc(S1.assureur_court||"Assureur ?")}${d.updatedBy?" · "+esc(qui(d.updatedBy)):""}</span></div>
+    <div class="inf"><b>${esc(S1.client_nom||"Nouveau client")}</b><span>${esc([S1.immat,titre((S1.marque+" "+S1.modele).trim())].filter(Boolean).join(" · ")||"Véhicule à compléter")}</span><span>${esc(S1.assureur_court||"Assureur ?")}${d.updatedBy?" · "+esc(qui(d.updatedBy)):""}</span>${d.signature&&d.signature.statut==="signee"?'<span class="sgm">✍️ Cession signée</span>':(d.signature&&d.signature.statut==="attente"?'<span class="sgw">⏳ Signature en attente</span>':"")}</div>
     <div class="rt"><div class="mt">${eur(ttcOf(d))}</div><span class="badge ${c}">${s}</span></div></div>`;}
 function bindDos(root){root.querySelectorAll(".dos,.frow[data-id]").forEach(e=>e.onclick=()=>openDossier(e.dataset.id));}
 function renderDash(){
@@ -1735,7 +1770,7 @@ $("#bDvNum").onclick=async()=>{if(S.dv_num&&!confirm(`Ce devis a déjà le n° $
   catch(e){toast("Il faut du réseau pour attribuer le numéro");}};
 $("#bDvPdf").onclick=async()=>{if(!S.dv_num)return toast("Attribuez d'abord un n° de devis");if(!S.lignes.length)return toast("Ajoutez les travaux (onglet Travaux)");
   if(!S.dv_date){S.dv_date=today();}
-  let r;try{r=await makePdf({btn:$("#bDvPdf"),html:devisDoc(D(),calc()),fname:`DEVIS_${S.dv_num}_${(S.client_nom||"client").split(" ").pop().toUpperCase().replace(/[^A-Z0-9]/g,"")}.pdf`});}
+  let r;try{r=await makePdf({btn:$("#bDvPdf"),html:(sigOk("dv")?docSigne("dv"):devisDoc(D(),calc())),fname:`DEVIS_${S.dv_num}_${(S.client_nom||"client").split(" ").pop().toUpperCase().replace(/[^A-Z0-9]/g,"")}.pdf`});}
   catch(e){return toast("PDF impossible : "+(e.message||e));}
   const file=new File([r.blob],r.fname,{type:"application/pdf"}),url=URL.createObjectURL(r.blob);
   const txt=`Bonjour,\n\nVeuillez trouver ci-joint notre devis n° ${S.dv_num} pour votre véhicule ${vehNom()} ${S.immat||""} (${(S.objet||"travaux").toLowerCase()}), d'un montant de ${eur(calc().ttc)} TTC.\n\nPour l'accepter, il suffit de nous le renvoyer signé avec la mention « Bon pour accord », ou de nous appeler.\n\nCordialement,\nEXPERT AUTO 63\n1 rue Pierre et Marie Curie, 63200 Riom\nTél. 06 26 52 33 62`;
@@ -1772,12 +1807,178 @@ function voirFacture(id){const d0=ALL.find(x=>x.id===id);if(!d0)return;
   $("#vfPdf").onclick=async()=>{$("#modal").classList.add("hide");await openDossier(id);setTab("envoi");toast("Cochez « Facture » seule si besoin, puis « Créer le PDF »");};}
 
 /* ====================================================================
+   SIGNATURE EN LIGNE PAR LE CLIENT
+   (ordre de réparation, cession de créance, devis)
+   ==================================================================== */
+let SIGS=[],SIGW=null;const SIG_FAITES=new Set();
+const DOCS_SIG={or:"Ordre de réparation",ces:"Cession de créance",dv:"Devis"};
+function sansImages(h){return h.split(LOGO).join("%%LOGO%%").split(TAMPON).join("%%TAMPON%%");}
+function avecImages(h){return String(h).split("%%LOGO%%").join(LOGO).split("%%TAMPON%%").join(TAMPON);}
+function docSig(k){const d=D(),c=calc();return sansImages(k==="or"?ordre(d,c):k==="ces"?cession(d,c):devisDoc(d,c));}
+function sigOk(k){const g=CUR&&CUR.signature;return !!(g&&g.statut==="signee"&&g.docs&&g.docs.some(x=>x.k===k));}
+function initiales(n){return String(n||"").trim().split(/\s+/).map(w=>w[0]||"").join("").toUpperCase().slice(0,4);}
+function isoDe(v){return v&&v.toDate?v.toDate().toISOString():(v||nowIso());}
+function signerHtml(html,g){
+  const bloc=`<img class="sigcli" src="${g.img}"><span class="sigel">Signé électroniquement le ${quand(isoDe(g.signeLe))} par ${esc(g.nom)}<br>« Lu et approuvé » — réf. ${esc(String(g.token||"").slice(0,10).toUpperCase())}</span>`;
+  return avecImages(html).split("<!--SIGCLI-->").join(bloc).split("<!--PARAPHE-->").join(`<div class="parsig">${esc(initiales(g.nom))} — signé en ligne</div>`);}
+function docSigne(k){const g=CUR.signature;return signerHtml(g.docs.find(y=>y.k===k).html,g);}
+function jeton(){return Array.from(crypto.getRandomValues(new Uint8Array(18)),b=>b.toString(16).padStart(2,"0")).join("");}
+function lienSig(t){return location.origin+location.pathname+"?signer="+t;}
+
+/* --- État dans l'onglet Envoi --- */
+function renderSig(){const e=$("#sigEtat"),b=$("#bSig");if(!e||!CUR)return;const g=CUR.signature;
+  if(Store.mode!=="cloud"){e.innerHTML='<div class="warn">La signature en ligne marche seulement quand on est connecté à l\'espace en ligne.</div>';b.disabled=true;return;}
+  b.disabled=false;
+  if(!g||g.statut==="annule"){e.innerHTML='<div class="hint" style="margin-top:0">Pas encore envoyé au client.</div>';b.textContent="✍️ Envoyer à signer au client";return;}
+  const noms=g.docs.map(x=>DOCS_SIG[x.k]).join(", ");
+  if(g.statut==="signee"){
+    const chg=g.docs.filter(x=>x.html!==docSig(x.k)).map(x=>DOCS_SIG[x.k]);
+    e.innerHTML=`<span class="sgst ok">✍️ Signé par le client</span><div class="hint">${esc(noms)}<br>Signé par <b>${esc(g.nom)}</b> le ${quand(g.signeLe)}. Les PDF utilisent la version signée.</div>${chg.length?`<div class="warn"><b>Le dossier a changé depuis la signature</b> (${esc(chg.join(", "))}). Les PDF gardent la version signée. Si le changement compte (montant, nom…), renvoyez à signer.</div>`:""}`;
+    b.textContent="Renvoyer à signer (nouvelle version)";return;}
+  e.innerHTML=`<span class="sgst att">⏳ En attente de signature</span><div class="hint">${esc(noms)}<br>${g.envoi?"Envoyé le "+quand(g.envoi.at)+" par "+esc(g.envoi.via):"Lien créé, pas encore envoyé"}${g.tel?" · "+esc(g.tel):""}${g.mail&&!g.tel?" · "+esc(g.mail):""}</div>`;
+  b.textContent="Renvoyer le lien / changer les documents";}
+
+/* --- Préparation du lien --- */
+async function preparerSig(ks){
+  if(!ks.length)throw new Error("Cochez au moins un document.");
+  if(!S.client_nom)throw new Error("Il manque le nom du client (onglet Client).");
+  if(ks.some(k=>k!=="dv")&&!S.numero)throw new Error("Attribuez d'abord le n° de facture : il figure sur l'ordre de réparation et la cession.");
+  if(ks.includes("dv")&&!S.dv_num)throw new Error("Attribuez d'abord un n° de devis.");
+  const docs=ks.map(k=>({k,titre:DOCS_SIG[k],html:docSig(k)}));
+  const g=CUR.signature;
+  if(g&&g.statut==="attente"&&JSON.stringify(g.docs)===JSON.stringify(docs))return g;
+  if(g&&g.statut==="attente")await Cloud.sigAnnule(g.token);
+  if(g&&g.statut==="signee")CUR.signatures_old=(CUR.signatures_old||[]).concat([g]);
+  const token=jeton();
+  await Cloud.sigCreate(token,{did:CUR.id,statut:"attente",docs,nomClient:S.client_nom,civ:S.client_civ,
+    vehicule:`${vehNom()} ${S.immat}`.trim(),creePar:ME||""});
+  CUR.signature={token,statut:"attente",docs,creeLe:nowIso(),creePar:ME||""};
+  log("Lien de signature créé : "+docs.map(x=>x.titre).join(", "));await saveNow();return CUR.signature;}
+
+function texteSig(g){const n=g.docs.length;
+  return `Bonjour ${S.client_civ} ${S.client_nom},\nExpert Auto 63 vous envoie ${n>1?"les documents":"le document"} à signer pour votre ${vehNom()} ${S.immat} : ${g.docs.map(x=>x.titre.toLowerCase()).join(", ")}.\nOuvrez ce lien et signez avec le doigt :\n${lienSig(g.token)}\n\nExpert Auto 63 – 06 26 52 33 62`;}
+
+$("#bSig").onclick=()=>{if(!CUR||Store.mode!=="cloud")return;
+  const g=CUR.signature&&CUR.signature.statut==="attente"?CUR.signature:null;
+  const pre=k=>g?g.docs.some(x=>x.k===k):(k==="or"?S.d_or:k==="ces"?S.d_ces:CUR.statut==="devis");
+  const ks=["or","ces"].concat(S.dv_num?["dv"]:[]);
+  modal("Envoyer à signer au client",`<label>Documents à faire signer</label>
+   ${ks.map(k=>`<label class="check"><input type="checkbox" data-sk="${k}" ${pre(k)?"checked":""}> ${DOCS_SIG[k]}${k==="dv"?" n° "+esc(S.dv_num):""}</label>`).join("")}
+   <label>Portable du client</label><input id="sgTel" type="tel" inputmode="tel" autocomplete="off" value="${esc(S.client_tel)}" placeholder="06 12 34 56 78">
+   <label>Ou son adresse mail</label><input id="sgMail" type="email" inputmode="email" autocomplete="off" value="${esc(S.client_mail)}" placeholder="client@exemple.fr">
+   <div id="sgErr"></div><div style="height:12px"></div>
+   <a class="btn v full" id="sgSms">📱 Envoyer par SMS</a><div style="height:8px"></div>
+   <a class="btn n full" id="sgMl">✉️ Envoyer par mail</a><div style="height:8px"></div>
+   <button class="btn c full" id="sgCp">Copier le lien</button>
+   <div class="hint">Le message s'ouvre déjà écrit avec le lien : il reste juste à appuyer sur Envoyer. Le lien marche 30 jours. Dès que le client a signé, le dossier passe à « Signé ».</div>`);
+  let G=null,pret=false;const err=m=>$("#sgErr").innerHTML=m?`<div class="warn">${esc(m)}</div>`:"";
+  const ios=/iPhone|iPad|Macintosh/.test(navigator.userAgent);
+  const liens=()=>{const tel=$("#sgTel").value.replace(/[^\d+]/g,""),ml=$("#sgMail").value.trim();
+    S.client_tel=$("#sgTel").value.trim();S.client_mail=ml;
+    $("#sgSms").href=G&&tel?`sms:${tel}${ios?"&":"?"}body=${encodeURIComponent(texteSig(G))}`:"#";
+    $("#sgMl").href=G&&ml?`mailto:${encodeURIComponent(ml)}?subject=${encodeURIComponent("Documents à signer – Expert Auto 63")}&body=${encodeURIComponent(texteSig(G))}`:"#";};
+  const maj=async()=>{pret=false;G=null;err("");$("#sgSms").style.opacity=$("#sgMl").style.opacity=".5";
+    try{G=await preparerSig($$("[data-sk]").filter(x=>x.checked).map(x=>x.dataset.sk));pret=true;$("#sgSms").style.opacity=$("#sgMl").style.opacity="";liens();renderSig();}
+    catch(e){err(e.code?"Pas de réseau ou accès refusé ("+e.code+"). Vérifiez les règles Firebase.":(e.message||String(e)));}};
+  const envoye=async via=>{if(!CUR.signature)return;CUR.signature.envoi={at:nowIso(),by:ME||"",via};CUR.signature.tel=S.client_tel;CUR.signature.mail=S.client_mail;
+    log("Envoyé à signer au client par "+via+(via==="SMS"?" ("+S.client_tel+")":via==="mail"?" ("+S.client_mail+")":""));renderHist();renderSig();await saveNow();};
+  $$("[data-sk]").forEach(x=>x.onchange=maj);
+  $("#sgTel").oninput=$("#sgMail").oninput=()=>{liens();scheduleSave();};
+  $("#sgSms").onclick=e=>{if(!pret){e.preventDefault();return err("Patientez, le lien se prépare…");}if(!S.client_tel.replace(/\D/g,"")){e.preventDefault();return err("Mettez le numéro de portable du client.");}envoye("SMS");};
+  $("#sgMl").onclick=e=>{if(!pret){e.preventDefault();return err("Patientez, le lien se prépare…");}if(!S.client_mail){e.preventDefault();return err("Mettez l'adresse mail du client.");}envoye("mail");};
+  $("#sgCp").onclick=async()=>{if(!pret)return err("Patientez, le lien se prépare…");await copier(lienSig(G.token));envoye("lien copié");};
+  maj();
+};
+
+/* --- Retour des signatures dans les dossiers --- */
+async function integrerSigs(){if(Store.mode!=="cloud")return;
+  for(const s of SIGS){if(SIG_FAITES.has(s.id))continue;
+    const isCur=!!(CUR&&CUR.signature&&CUR.signature.token===s.id);
+    const d=isCur?CUR:ALL.find(x=>x.signature&&x.signature.token===s.id);
+    if(!d)continue;
+    SIG_FAITES.add(s.id);
+    if(d.signature.statut==="signee")continue;
+    Object.assign(d.signature,{statut:"signee",img:s.img,nom:s.nom,signeLe:isoDe(s.signeLe),appareil:s.appareil||""});
+    d.historique=d.historique||[];d.historique.push({at:nowIso(),by:"signature en ligne",txt:"✍️ Signé en ligne par "+s.nom+" : "+d.signature.docs.map(x=>x.titre).join(", ")});
+    try{if(isCur){await saveNow();renderSig();renderHist();}else{d.updatedAt=nowIso();await DB.save(d);}
+      toast("✍️ "+s.nom+" a signé ("+(d.S.numero?"n° "+d.S.numero:d.S.client_nom)+")");}
+    catch(e){SIG_FAITES.delete(s.id);}
+  }}
+
+/* --- PDF simple (page client) --- */
+async function pdfDe(html){
+  await loadScript("https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js");
+  await loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
+  const st=$("#stage");st.innerHTML=html;await Promise.all([...st.querySelectorAll("img")].map(i=>i.decode?i.decode().catch(()=>{}):0));
+  const pdf=new jspdf.jsPDF({unit:"mm",format:"a4",compress:true});let first=true;
+  for(const sh of st.querySelectorAll(".sheet")){const cv=await html2canvas(sh,{scale:2,backgroundColor:"#ffffff",useCORS:true,logging:false});
+    if(!first)pdf.addPage();first=false;pdf.addImage(cv.toDataURL("image/jpeg",0.86),"JPEG",0,0,210,297);}
+  st.innerHTML="";return pdf.output("blob");}
+
+/* --- Page ouverte par le client (lien ?signer=…) --- */
+async function pageSignature(t){show("#vSign");document.title="Signature – Expert Auto 63";const B=$("#sgBody");
+  const carte=(h,p)=>`<div class="card"><h2>${h}</h2>${p}</div>`;
+  const tel='<a href="tel:0626523362">06 26 52 33 62</a>';
+  B.innerHTML=carte("Chargement","<p>Ouverture du document…</p>");
+  if(Store.mode!=="cloud"){B.innerHTML=carte("Connexion impossible","<p>Vérifiez votre connexion internet, puis rechargez la page.</p>");return;}
+  let g;try{g=await Cloud.sigGet(t);}catch(e){B.innerHTML=carte("Connexion impossible",`<p>Vérifiez votre connexion internet, puis rechargez la page. Si cela continue, appelez Expert Auto 63 au ${tel}.</p>`);return;}
+  if(!g||g.statut==="annule"){B.innerHTML=carte("Lien plus valable",`<p>Ce lien a été remplacé par un plus récent, ou il n'existe pas. Contactez Expert Auto 63 au ${tel}.</p>`);return;}
+  g.token=t;
+  const w=Math.min(window.innerWidth,820)-62;document.documentElement.style.setProperty("--s",(w/794).toFixed(4));
+  const n=g.docs.length,ces=g.docs.some(x=>x.k==="ces");
+  const docs=h=>g.docs.map((x,i)=>`<div class="card"><h2>${i+1}. ${esc(x.titre)}</h2><div class="sgdoc" style="overflow-x:auto">${h(x.html)}</div><button class="btn c s" data-zoom style="margin-top:6px">🔍 Agrandir</button></div>`).join("");
+  const zoom=()=>$$("[data-zoom]").forEach(b=>b.onclick=()=>{const d=b.previousElementSibling,on=d.style.getPropertyValue("--s");
+    if(on){d.style.removeProperty("--s");b.textContent="🔍 Agrandir";}else{d.style.setProperty("--s","1");b.textContent="Réduire";}});
+  const fini=(g2,juste)=>{const tout=g2.docs.map(x=>signerHtml(x.html,g2)).join("");
+    B.innerHTML=carte(juste?"✅ Merci, c'est signé":"✅ Déjà signé",`<p>${n>1?"Les documents ont été signés":"Le document a été signé"} le <b>${quand(isoDe(g2.signeLe))}</b> par <b>${esc(g2.nom)}</b>. Expert Auto 63 l'a reçu automatiquement. Vous n'avez rien d'autre à faire.</p>
+      <button class="btn v full" id="sCopie">📄 Télécharger ma copie (PDF)</button><div id="sCopieL"></div><div class="hint">Une question ? Appelez le garage au ${tel}.</div>`)+docs(h=>signerHtml(h,g2));zoom();
+    $("#sCopie").onclick=async()=>{const b=$("#sCopie");b.disabled=true;b.textContent="Création du PDF…";
+      try{const blob=await pdfDe(tout);const u=URL.createObjectURL(blob);
+        $("#sCopieL").innerHTML=`<div style="height:8px"></div><a class="btn n full" href="${u}" download="Documents_signes_Expert_Auto_63.pdf" target="_blank">Ouvrir ma copie</a>`;b.textContent="📄 Copie prête";}
+      catch(e){b.disabled=false;b.textContent="📄 Télécharger ma copie (PDF)";toast("PDF impossible, vérifiez la connexion");}};};
+  if(g.statut==="signee")return fini(g,false);
+  if(g.expire&&g.expire.toMillis&&g.expire.toMillis()<Date.now()){B.innerHTML=carte("Lien expiré",`<p>Ce lien n'est plus valable. Demandez un nouveau lien à Expert Auto 63 au ${tel}.</p>`);return;}
+  B.innerHTML=carte(`Bonjour ${esc(g.civ||"")} ${esc(g.nomClient||"")}`,`<p>Expert Auto 63 vous demande de signer ${n>1?`ces ${n} documents`:"ce document"} pour votre véhicule <b>${esc(g.vehicule||"")}</b>. Lisez-${n>1?"les":"le"}, puis signez tout en bas de la page.</p><div class="hint">Touchez « Agrandir » pour lire plus facilement.</div>`)
+   +docs(h=>avecImages(h))
+   +carte("Signature",`<label>Votre nom et prénom</label><input id="sNom" value="${esc(g.nomClient||"")}" autocomplete="name">
+   <label class="check" style="align-items:flex-start"><input type="checkbox" id="sOk" style="flex:0 0 22px;margin-top:2px"> <span>J'ai lu ${n>1?"les documents ci-dessus":"le document ci-dessus"}. Lu et approuvé, bon pour accord${ces?", bon pour cession de créance":""}.</span></label>
+   <label>Signez avec le doigt dans le cadre</label><div class="pad"><canvas id="sPad"></canvas><div class="ph" id="sPh">Signez ici</div></div>
+   <button class="btn c s" id="sClr" style="margin-top:8px">Effacer</button>
+   <div id="sErr"></div><button class="btn v full" id="sGo" style="margin-top:12px">✍️ Signer ${n>1?"les documents":"le document"}</button>
+   <div class="hint">Votre signature électronique a la même valeur qu'une signature à la main. La date et l'heure de la signature sont enregistrées.</div>`);
+  zoom();
+  const cv=$("#sPad"),ctx=cv.getContext("2d");let vide=true,dr=false,last=null;
+  const fit=()=>{const r=cv.getBoundingClientRect(),k=window.devicePixelRatio||1;cv.width=Math.round(r.width*k);cv.height=Math.round(r.height*k);
+    ctx.setTransform(k,0,0,k,0,0);ctx.lineWidth=2.6;ctx.lineCap="round";ctx.lineJoin="round";ctx.strokeStyle=ctx.fillStyle="#0a2a8a";vide=true;$("#sPh").style.display="";};
+  fit();
+  const pt=e=>{const r=cv.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top};};
+  cv.addEventListener("pointerdown",e=>{e.preventDefault();try{cv.setPointerCapture(e.pointerId);}catch(x){}dr=true;last=pt(e);ctx.beginPath();ctx.arc(last.x,last.y,1.3,0,7);ctx.fill();vide=false;$("#sPh").style.display="none";});
+  cv.addEventListener("pointermove",e=>{if(!dr)return;e.preventDefault();const p=pt(e);ctx.beginPath();ctx.moveTo(last.x,last.y);ctx.lineTo(p.x,p.y);ctx.stroke();last=p;});
+  ["pointerup","pointercancel","pointerleave"].forEach(x=>cv.addEventListener(x,()=>dr=false));
+  $("#sClr").onclick=fit;
+  const png=()=>{const W=cv.width,H=cv.height,d=ctx.getImageData(0,0,W,H).data;let x0=W,y0=H,x1=0,y1=0;
+    for(let y=0;y<H;y+=2)for(let x=0;x<W;x+=2)if(d[(y*W+x)*4+3]>10){if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;}
+    const m=10;x0=Math.max(0,x0-m);y0=Math.max(0,y0-m);x1=Math.min(W,x1+m);y1=Math.min(H,y1+m);
+    const sw=Math.max(1,x1-x0),sh=Math.max(1,y1-y0),k=Math.min(1,500/sw,200/sh),o=document.createElement("canvas");
+    o.width=Math.max(1,Math.round(sw*k));o.height=Math.max(1,Math.round(sh*k));o.getContext("2d").drawImage(cv,x0,y0,sw,sh,0,0,o.width,o.height);return o.toDataURL("image/png");};
+  $("#sGo").onclick=async()=>{const nom=$("#sNom").value.trim(),er=m=>$("#sErr").innerHTML=`<div class="warn">${m}</div>`;
+    if(nom.length<3)return er("Écrivez votre nom et prénom.");
+    if(!$("#sOk").checked)return er("Cochez la case « Lu et approuvé ».");
+    if(vide)return er("Signez dans le cadre avec le doigt.");
+    const b=$("#sGo"),lab=b.textContent;b.disabled=true;b.textContent="Envoi de la signature…";const img=png();
+    try{await Cloud.sigSigne(t,{img,nom:nom.slice(0,100),appareil:navigator.userAgent.slice(0,200)});}
+    catch(e){b.disabled=false;b.textContent=lab;return er("La signature n'a pas pu être envoyée. Vérifiez votre connexion et réessayez. Si cela continue, appelez le "+tel+".");}
+    window.scrollTo(0,0);fini(Object.assign({},g,{statut:"signee",img,nom,signeLe:nowIso()}),true);};
+}
+
+/* ====================================================================
    DÉMARRAGE
    ==================================================================== */
 let unwatch=null;
 async function startData(){
   await seedArchives();
-  if(unwatch)unwatch();unwatch=DB.watch(a=>{ALL=a.filter(d=>d.type!=="pret");PRETS=a.filter(d=>d.type==="pret");renderView();setTimeout(nettoyer,1500);});
+  if(unwatch)unwatch();unwatch=DB.watch(a=>{ALL=a.filter(d=>d.type!=="pret");PRETS=a.filter(d=>d.type==="pret");renderView();setTimeout(nettoyer,1500);integrerSigs();});
+  if(Store.mode==="cloud"&&!SIGW)SIGW=Cloud.sigWatch(l=>{SIGS=l;integrerSigs();});
   $("#who").textContent=Store.mode==="cloud"?`Connecté : ${ME}`:"Mode essai : les dossiers restent sur cet appareil (pas encore relié à l'espace en ligne).";
   $("#dUser").innerHTML=Store.mode==="cloud"?`Connecté : <b>${esc(qui(ME))}</b>`:"Mode essai";
   VIEW="dash";
@@ -1792,6 +1993,8 @@ $("#lPass").addEventListener("keydown",e=>{if(e.key==="Enter")$("#lGo").click();
 (async function init(){
   if("serviceWorker" in navigator&&location.protocol==="https:")fetch("sw.js",{method:"HEAD"}).then(r=>{if(r.ok)navigator.serviceWorker.register("sw.js");}).catch(()=>{});
   if(FIREBASE_CONFIG){
+    const jeton=new URLSearchParams(location.search).get("signer");
+    if(jeton){try{await Cloud.init();DB=Cloud;Store.mode="cloud";}catch(e){}pageSignature(jeton);return;}
     try{await Cloud.init();DB=Cloud;Store.mode="cloud";
       Cloud.onUser(async email=>{ME=email;if(email){await startData();}else{if(unwatch){unwatch();unwatch=null;}show("#vLogin");}});
       return;
