@@ -1313,7 +1313,7 @@ function jSonUI(){const b=document.getElementById("jSon");if(b)b.textContent=jSo
 function jDebloque(){if(!window.speechSynthesis)return;try{const u=new SpeechSynthesisUtterance(" ");u.volume=0;u.lang="fr-FR";speechSynthesis.speak(u);}catch(e){}}
 function jVoix(){const V=speechSynthesis.getVoices().filter(v=>/^fr/i.test(v.lang));return V.find(v=>/thomas|daniel|male|homme/i.test(v.name))||V.find(v=>/fr-FR/i.test(v.lang))||V[0]||null;}
 function jDire(html){if(!jSon||!window.speechSynthesis)return;
-  const t=html.replace(/<br\s*\/?>/gi,". ").replace(/<[^>]+>/g,"").replace(/&amp;/g,"et").replace(/&[a-z#0-9]+;/gi," ").replace(/€/g," euros").replace(/•/g,"").replace(/N° /g,"numéro ").replace(/[\u00a0\u202f]/g," ").replace(/⚠️|✍️|⏳|👍|🤵/g,"");
+  const t=html.replace(/<br\s*\/?>/gi,". ").replace(/<[^>]+>/g,"").replace(/&amp;/g,"et").replace(/&[a-z#0-9]+;/gi," ").replace(/€/g," euros").replace(/•/g,"").replace(/·/g,",").replace(/ – /g,", ").replace(/N° /g,"numéro ").replace(/[\u00a0\u202f]/g," ").replace(/⚠️|✍️|⏳|👍|🤵/g,"");
   speechSynthesis.cancel();const v=jVoix();
   (t.match(/[^.!?\n]+[.!?\n]*/g)||[t]).map(x=>x.trim()).filter(x=>x.length>1).slice(0,25).forEach(ph=>{
     const u=new SpeechSynthesisUtterance(ph);u.lang="fr-FR";u.rate=1.05;if(v)u.voice=v;speechSynthesis.speak(u);});}
