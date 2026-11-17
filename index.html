@@ -1382,7 +1382,7 @@ $("#jefB").onclick=()=>{jDebloque();jSonUI();jOuvrir();};$("#jX").onclick=()=>{$
 $("#jef").onclick=e=>{if(e.target.id==="jef")$("#jef").classList.add("hide");};
 $("#jForm").onsubmit=e=>{e.preventDefault();jDebloque();const q=$("#jIn").value.trim();if(!q)return;$("#jIn").value="";jAdd(esc(q),"u");
   if(/command|vsf|panier/i.test(sansAcc(q))){const D=jTrouver(q);
-    if(D.length===1){const d=D[0],r=`Je prépare la commande du pare-brise pour le dossier ${esc(d.S.numero||"")}, ${esc(d.S.client_nom||"")}. Appuyez sur « Ouvrir mon espace VSF », le numéro de série est copié, collez-le dans la recherche.`;
+    if(D.length===1){const d=D[0],r=`Je prépare la commande du pare-brise pour le dossier ${esc(d.S.numero||"")}, ${esc(d.S.client_nom||"")}. J'ouvre la fiche VSF, appuyez sur le bouton vert pour voir les pare-brises.`;
       jAdd(r,"j");jDire(r);setTimeout(async()=>{$("#jef").classList.add("hide");await openDossier(d.id);setTab("vehicule");vsfModal();},900);return;}
     if(!D.length){const r="Pour quel dossier ? Dites par exemple : commande le pare-brise du dossier 52.";jAdd(r,"j");jDire(r);return;}}
   const parle=jParle;jParle=false;
@@ -1398,26 +1398,42 @@ $("#jForm").onsubmit=e=>{e.preventDefault();jDebloque();const q=$("#jIn").value.
 
 /* Commande pare-brise chez VSF : infos à copier + ouverture de l'espace client */
 async function vsfUrl(){try{const m=await DB.meta("vsf_url");return m&&m.v||"https://client.myvsf.fr/";}catch(e){return"https://client.myvsf.fr/";}}
-async function vsfRecherche(){try{const m=await DB.meta("vsf_recherche");return m&&m.v||"";}catch(e){return"";}}
-async function vsfModal(){const S1=S,an=(S1.mec||"").match(/(19|20)\d\d/);let url=await vsfUrl();
-  const modele=await vsfRecherche();
-  if(modele&&(S1.vin||S1.immat))url=modele.replace(/\{vin\}/g,encodeURIComponent(S1.vin||"")).replace(/\{immat\}/g,encodeURIComponent((S1.immat||"").replace(/[\s-]/g,""))).replace(/\{plaque\}/g,encodeURIComponent(S1.immat||""));
-  const L=[["Immatriculation",S1.immat],["VIN (n° de série)",S1.vin],["Marque",S1.marque],["Modèle",S1.modele],["Année",an?an[0]:""],["1re mise en circulation",S1.mec],["Énergie",S1.energie]].filter(x=>x[1]);
-  const tout=L.map(([k,v])=>k+" : "+v).join("\n");
-  modal("Pare-brise chez VSF",`${L.length?"":`<div class="warn">Remplissez d'abord la plaque ou le VIN dans l'onglet Véhicule.</div>`}
-   <div style="background:#fff;border:1px solid #dcdedb;border-radius:12px;padding:4px 12px">${L.map(([k,v])=>`<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid #eee;font-size:14px"><span style="color:#555">${esc(k)}</span><span><b>${esc(v)}</b> <button class="btn c s" data-cpv="${esc(v)}" style="padding:4px 8px;margin-left:4px">Copier</button></span></div>`).join("")}</div>
-   <button class="btn c full" id="vsfAll" style="margin-top:10px">📋 Tout copier</button>
-   ${url?`<a class="btn v full" id="vsfGo" href="${esc(url)}" target="_blank" rel="noopener" style="margin-top:10px">🛒 Ouvrir mon espace VSF</a>
-     <button class="btn c s" id="vsfChg" style="margin-top:8px">Changer l'adresse VSF</button>`
-    :`<label style="margin-top:12px">Adresse de votre espace client VSF (une seule fois)</label><input id="vsfIn" type="url" inputmode="url" placeholder="https://…"><button class="btn v full" id="vsfSave" style="margin-top:8px">Enregistrer et ouvrir</button>`}
-   <div class="hint">Le VIN est copié en premier : collez-le dans la recherche VSF, puis mettez le pare-brise au panier.</div>`);
+/* VSF : lien direct vers les pare-brises du véhicule.
+   Les numéros VSF (marque=…, model=…) sont appris au fur et à mesure et partagés entre les comptes. */
+const VSF_BASE="https://client.myvsf.fr/catalogue/vitrage";
+const VSF_DEPART={marques:{RENAULT:212},modeles:[{marque:"RENAULT",nom:"CLIO 4 (2012-2019)",cle:"RENAULT|CLIO",an1:2012,an2:2019,mid:212,model:883}]};
+async function vsfIds(){let v=null;try{const m=await DB.meta("vsf_ids");v=m&&m.v;}catch(e){}
+  v=v||JSON.parse(JSON.stringify(VSF_DEPART));v.marques=Object.assign({},VSF_DEPART.marques,v.marques||{});v.modeles=v.modeles||[];
+  VSF_DEPART.modeles.forEach(x=>{if(!v.modeles.some(y=>y.model===x.model))v.modeles.push(x);});return v;}
+const vsfNorm=t=>sansAcc(t||"").toUpperCase().replace(/[^A-Z0-9 ]/g," ").replace(/\s+/g," ").trim();
+function vsfLien(mid,model){return `${VSF_BASE}?famille_vehicule=DIVE${mid?"&marque="+mid:""}${model?"&model="+model:""}&position=1&with_joint=1&search_advanced=1`;}
+function vsfAnnee(S1){const a=(S1.mec||"").match(/(19|20)\d\d/);return a?+a[0]:null;}
+function vsfChoix(ids,S1){const ma=vsfNorm(S1.marque),mo=vsfNorm(S1.modele),an=vsfAnnee(S1),w=mo.split(" ")[0]||"";
+  const L=ids.modeles.filter(x=>x.marque===ma);
+  const bons=L.filter(x=>w&&vsfNorm(x.cle.split("|")[1]||x.nom).split(" ")[0]===w&&(!an||!x.an1||(an>=x.an1&&an<=(x.an2||2100))));
+  return{mid:ids.marques[ma]||null,exact:bons.length===1?bons[0]:null,proches:bons.length>1?bons:L};}
+async function vsfApprendre(lien,S1){let u;try{u=new URL(lien.trim());}catch(e){return null;}
+  const mid=+u.searchParams.get("marque")||null,model=+u.searchParams.get("model")||null;if(!mid||!model)return null;
+  const ids=await vsfIds(),ma=vsfNorm(S1.marque),mo=vsfNorm(S1.modele),an=vsfAnnee(S1);if(!ma)return null;
+  ids.marques[ma]=mid;ids.modeles=ids.modeles.filter(x=>x.model!==model);
+  ids.modeles.push({marque:ma,nom:(mo||"modèle")+(an?" ("+an+")":""),cle:ma+"|"+(mo.split(" ")[0]||mo),an1:an?an-3:null,an2:an?an+3:null,mid,model});
+  try{await DB.setMeta("vsf_ids",ids);}catch(e){}return{mid,model};}
+async function vsfModal(){const S1=S,an=vsfAnnee(S1);const ids=await vsfIds(),c=vsfChoix(ids,S1);
+  const L=[["Immatriculation",S1.immat],["VIN (n° de série)",S1.vin],["Marque",S1.marque],["Modèle",S1.modele],["Année",an||""],["Énergie",S1.energie]].filter(x=>x[1]);
+  let hautHtml;
+  if(c.exact)hautHtml=`<a class="btn v full" id="vsfGo" href="${esc(vsfLien(c.exact.mid,c.exact.model))}" target="_blank" rel="noopener" style="font-size:17px">🛒 Voir les pare-brises ${esc(S1.marque||"")} ${esc(S1.modele||"")}</a>
+     <div class="hint">VSF s'ouvre directement sur les pare-brises (avec joints) de ce modèle : choisissez et appuyez sur « Ajouter au panier ».</div>`;
+  else hautHtml=(c.proches.length?`<label>Quel modèle VSF ?</label>`+c.proches.map(x=>`<a class="btn c full" href="${esc(vsfLien(x.mid,x.model))}" target="_blank" rel="noopener" style="margin-bottom:6px">🛒 ${esc(x.marque)} ${esc(x.nom)}</a>`).join(""):"")+
+     `<a class="btn v full" id="vsfGo" href="${esc(vsfLien(c.mid,null))}" target="_blank" rel="noopener" style="margin-top:6px">🛒 Ouvrir VSF${c.mid?" ("+esc(S1.marque)+" déjà choisi)":""}</a>
+     <div class="hint">Choisissez le modèle sur VSF et lancez la recherche. Puis copiez l'adresse de la page (appui sur la barre d'adresse) et collez-la ici : Jeffrey retiendra ce modèle et ouvrira directement les pare-brises la prochaine fois.</div>
+     <input id="vsfLienIn" type="url" inputmode="url" placeholder="Coller le lien VSF des résultats"><button class="btn n full" id="vsfLienOk" style="margin-top:8px">💾 Retenir ce modèle</button>`;
+  modal("Pare-brise chez VSF",`${hautHtml}
+   <label style="margin-top:12px">Véhicule</label>
+   <div style="background:#fff;border:1px solid #dcdedb;border-radius:12px;padding:4px 12px">${L.map(([k,v])=>`<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid #eee;font-size:14px"><span style="color:#555">${esc(k)}</span><span><b>${esc(v)}</b> <button class="btn c s" data-cpv="${esc(v)}" style="padding:4px 8px;margin-left:4px">Copier</button></span></div>`).join("")||'<div class="hint">Remplissez d\'abord la marque et le modèle dans l\'onglet Véhicule.</div>'}</div>`);
   $$("#mB [data-cpv]").forEach(b=>b.onclick=()=>copier(b.dataset.cpv));
-  $("#vsfAll").onclick=()=>copier(tout);
-  const noter=()=>{log("Pare-brise à commander chez VSF");renderHist();saveNow();};
-  if($("#vsfGo"))$("#vsfGo").onclick=()=>{copier(S1.vin||S1.immat||"");noter();};
-  if($("#vsfChg"))$("#vsfChg").onclick=async()=>{const u=prompt("Nouvelle adresse de l'espace VSF :",url);if(u&&/^https?:\/\//.test(u.trim())){await DB.setMeta("vsf_url",u.trim());vsfModal();}};
-  if($("#vsfSave"))$("#vsfSave").onclick=async()=>{let u=$("#vsfIn").value.trim();if(u&&!/^https?:\/\//.test(u))u="https://"+u;if(!u)return toast("Collez l'adresse du site VSF");
-    try{await DB.setMeta("vsf_url",u);}catch(e){}copier(S1.vin||S1.immat||"");noter();window.open(u,"_blank");vsfModal();};}
+  $$("#mB a[target]").forEach(a=>a.addEventListener("click",()=>{log("Pare-brise à commander chez VSF");renderHist();saveNow();}));
+  if($("#vsfLienOk"))$("#vsfLienOk").onclick=async()=>{const r=await vsfApprendre($("#vsfLienIn").value,S1);
+    if(!r)return toast("Lien non reconnu : il doit contenir marque=… et model=…");toast("Modèle retenu pour "+(S1.marque||"")+" "+(S1.modele||""));vsfModal();};}
 $("#bVsf").onclick=vsfModal;
 
 $("#relPause").onchange=async()=>{if(!CUR||Store.mode!=="cloud")return;const v=$("#relPause").checked;
