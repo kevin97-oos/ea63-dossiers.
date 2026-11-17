@@ -816,6 +816,7 @@ const PIED_DOS = 'EXPERT AUTO 63 — SARL au capital de 10 000 € — Siège so
 const IBAN_LIGNE = 'IBAN : FR76 3000 3020 3800 0202 5295 914 — BIC : SOGEFRPP';
 const REGL_LIGNE = 'Règlement : chèque, carte bancaire, espèces ou virement';
 const DERNIER_NUMERO_AVANT_APPLI = 51;
+const JEFFREY_URL = ""; // adresse du relais Claude (Worker Cloudflare). Vide = Jeffrey répond sans IA.
 
 const PRESETS = {
   gmf:{assureur_court:"GMF",assureur_affiche:"GMF",assureur_ligne:"GMF Assurances, 148 rue Anatole France, 92597 Levallois-Perret Cedex",destinataire:"GMF ASSURANCES\nIndemnisation auto\n148 rue Anatole France\n92597 LEVALLOIS-PERRET CEDEX",mail_assureur:"indemnisation.auto@gmf.fr"},
@@ -1282,6 +1283,24 @@ function jEcoute(){const SR=window.SpeechRecognition||window.webkitSpeechRecogni
     if(fin.trim()){jParle=true;$("#jIn").value=fin.trim();$("#jForm").requestSubmit();$("#jEtat").textContent="Appuyez sur le micro et parlez";}};
   try{jRec.start();}catch(err){jRec=null;$("#jEtat").textContent="Micro indisponible, réessayez.";}}
 $("#jMic").onclick=jEcoute;
+/* Jeffrey + Claude : envoie la question et un résumé des dossiers au relais */
+let jHisto=[];
+function jDonnees(){return ALL.filter(d=>d.S).map(d=>{const S1=d.S,r=relInfo(d),t=ttcOf(d),p=paidOf(d);return{
+  n:S1.numero||"",id:d.id,client:((S1.client_civ||"")+" "+(S1.client_nom||"")).trim(),tel:S1.client_tel||"",statut:d.statut,type:S1.sinistre_type||"",
+  vehicule:titre(((S1.marque||"")+" "+(S1.modele||"")).trim()),immat:S1.immat||"",assureur:S1.assureur_court||"",sinistre:S1.n_sinistre||"",contrat:S1.n_contrat||"",
+  expertise:S1.exp_num||"",date_facture:S1.date||"",envoye_le:d.envoi&&d.envoi.at?d.envoi.at.slice(0,10):"",ttc:t,encaisse:p,reste:r2(Math.max(0,t-p)),
+  relances:r.n,derniere_relance:r.der?r.der.at.slice(0,10):"",relances_arretees:r.pause,mail_relance:r.mail,
+  signature:d.signature?d.signature.statut:"",travaux:(S1.lignes||[]).map(l=>l.designation).filter(Boolean).slice(0,6).join(" ; "),note:S1.note||""};});}
+async function jClaude(q){
+  const tok=Store.mode==="cloud"&&Cloud.auth&&Cloud.auth.currentUser?await Cloud.auth.currentUser.getIdToken():"";
+  const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),30000);
+  const r=await fetch(JEFFREY_URL,{method:"POST",signal:ctl.signal,headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({question:q,historique:jHisto,dossiers:jDonnees(),aujourdhui:new Date().toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long",year:"numeric"}),idToken:tok})});
+  clearTimeout(to);const d=await r.json();if(!r.ok||!d.reponse)throw new Error(d.erreur||"pas de réponse");
+  jHisto.push({role:"user",texte:q},{role:"assistant",texte:d.reponse});jHisto=jHisto.slice(-8);
+  // liens vers les dossiers cités
+  let h=esc(d.reponse);ALL.filter(x=>x.S&&x.S.numero).forEach(x=>{h=h.replace(new RegExp("(N°|numéro|dossier)\\s?"+x.S.numero+"\\b","gi"),m=>`<a href="#" data-jo="${esc(x.id)}">${m}</a>`);});
+  return h;}
 function jOuvrir(){$("#jef").classList.remove("hide");
   if(!$("#jMsgs").children.length)jAdd("Bonjour, je suis Jeffrey 🤵\nDemandez-moi où en est un dossier, qui n'a pas payé, les relances…","j");
   $("#jSug").innerHTML=["Qui n'a pas payé ?","Relances","Ce mois-ci","Dossiers en cours"].map(t=>`<button type="button">${t}</button>`).join("");
@@ -1289,7 +1308,13 @@ function jOuvrir(){$("#jef").classList.remove("hide");
 $("#jefB").onclick=jOuvrir;$("#jX").onclick=()=>{$("#jef").classList.add("hide");if(window.speechSynthesis)speechSynthesis.cancel();if(jRec)jRec.stop();};
 $("#jef").onclick=e=>{if(e.target.id==="jef")$("#jef").classList.add("hide");};
 $("#jForm").onsubmit=e=>{e.preventDefault();const q=$("#jIn").value.trim();if(!q)return;$("#jIn").value="";jAdd(esc(q),"u");
-  setTimeout(()=>{let r;try{r=jRepondre(q);}catch(err){r="Oups, je n'ai pas réussi à lire les dossiers.";console.warn(err);}jAdd(r,"j");jDire(r);jParle=false;},250);};
+  const parle=jParle;jParle=false;
+  if(JEFFREY_URL){const att=document.createElement("div");att.className="jm j";att.textContent="…";$("#jMsgs").appendChild(att);$("#jMsgs").scrollTop=1e9;
+    jClaude(q).then(r=>{att.remove();jAdd(r,"j");jParle=parle;jDire(r);jParle=false;})
+      .catch(err=>{att.remove();console.warn("Jeffrey",err);let r;try{r=jRepondre(q);}catch(e){r="Oups, je n'ai pas réussi à lire les dossiers.";}
+        jAdd(r+'<br><small style="color:#888">(réponse simple : Claude ne répond pas en ce moment)</small>',"j");jParle=parle;jDire(r);jParle=false;});
+    return;}
+  setTimeout(()=>{let r;try{r=jRepondre(q);}catch(err){r="Oups, je n'ai pas réussi à lire les dossiers.";console.warn(err);}jAdd(r,"j");jParle=parle;jDire(r);jParle=false;},250);};
 
 $("#relPause").onchange=async()=>{if(!CUR||Store.mode!=="cloud")return;const v=$("#relPause").checked;
   try{await Cloud.relSet(CUR.id,{pause:v,dossier:CUR.id,numero:String(S.numero||"")});log(v?"Relances automatiques arrêtées":"Relances automatiques réactivées");renderHist();saveNow();toast(v?"Ce dossier ne sera plus relancé":"Relances réactivées");}
