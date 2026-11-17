@@ -1387,7 +1387,7 @@ $("#jForm").onsubmit=e=>{e.preventDefault();jDebloque();const q=$("#jIn").value.
   setTimeout(()=>{let r;try{r=jRepondre(q);}catch(err){r="Oups, je n'ai pas réussi à lire les dossiers.";console.warn(err);}jAdd(r,"j");jParle=parle;jDire(r);jParle=false;},250);};
 
 /* Commande pare-brise chez VSF : infos à copier + ouverture de l'espace client */
-async function vsfUrl(){try{const m=await DB.meta("vsf_url");return m&&m.v||"";}catch(e){return"";}}
+async function vsfUrl(){try{const m=await DB.meta("vsf_url");return m&&m.v||"https://client.myvsf.fr/";}catch(e){return"https://client.myvsf.fr/";}}
 async function vsfModal(){const S1=S,an=(S1.mec||"").match(/(19|20)\d\d/);const url=await vsfUrl();
   const L=[["Immatriculation",S1.immat],["VIN (n° de série)",S1.vin],["Marque",S1.marque],["Modèle",S1.modele],["Année",an?an[0]:""],["1re mise en circulation",S1.mec],["Énergie",S1.energie]].filter(x=>x[1]);
   const tout=L.map(([k,v])=>k+" : "+v).join("\n");
