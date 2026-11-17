@@ -1406,7 +1406,9 @@ async function vsfIds(){let v=null;try{const m=await DB.meta("vsf_ids");v=m&&m.v
   v=v||JSON.parse(JSON.stringify(VSF_DEPART));v.marques=Object.assign({},VSF_DEPART.marques,v.marques||{});v.modeles=v.modeles||[];
   VSF_DEPART.modeles.forEach(x=>{if(!v.modeles.some(y=>y.model===x.model))v.modeles.push(x);});return v;}
 const vsfNorm=t=>sansAcc(t||"").toUpperCase().replace(/[^A-Z0-9 ]/g," ").replace(/\s+/g," ").trim();
-function vsfLien(mid,model){return `${VSF_BASE}?famille_vehicule=DIVE${mid?"&marque="+mid:""}${model?"&model="+model:""}&position=1&with_joint=1&search_advanced=1`;}
+function vsfLien(mid,model){ // sans modèle : on ouvre le formulaire (sinon VSF répond « trop de résultats »)
+  if(!model)return `${VSF_BASE}?famille_vehicule=DIVE${mid?"&marque="+mid:""}`;
+  return `${VSF_BASE}?famille_vehicule=DIVE&marque=${mid}&model=${model}&position=1&with_joint=1&search_advanced=1`;}
 function vsfAnnee(S1){const a=(S1.mec||"").match(/(19|20)\d\d/);return a?+a[0]:null;}
 function vsfChoix(ids,S1){const ma=vsfNorm(S1.marque),mo=vsfNorm(S1.modele),an=vsfAnnee(S1),w=mo.split(" ")[0]||"";
   const L=ids.modeles.filter(x=>x.marque===ma);
@@ -1424,7 +1426,7 @@ async function vsfModal(){const S1=S,an=vsfAnnee(S1);const ids=await vsfIds(),c=
   if(c.exact)hautHtml=`<a class="btn v full" id="vsfGo" href="${esc(vsfLien(c.exact.mid,c.exact.model))}" target="_blank" rel="noopener" style="font-size:17px">🛒 Voir les pare-brises ${esc(S1.marque||"")} ${esc(S1.modele||"")}</a>
      <div class="hint">VSF s'ouvre directement sur les pare-brises (avec joints) de ce modèle : choisissez et appuyez sur « Ajouter au panier ».</div>`;
   else hautHtml=(c.proches.length?`<label>Quel modèle VSF ?</label>`+c.proches.map(x=>`<a class="btn c full" href="${esc(vsfLien(x.mid,x.model))}" target="_blank" rel="noopener" style="margin-bottom:6px">🛒 ${esc(x.marque)} ${esc(x.nom)}</a>`).join(""):"")+
-     `<a class="btn v full" id="vsfGo" href="${esc(vsfLien(c.mid,null))}" target="_blank" rel="noopener" style="margin-top:6px">🛒 Ouvrir VSF${c.mid?" ("+esc(S1.marque)+" déjà choisi)":""}</a>
+     `<a class="btn v full" id="vsfGo" href="${esc(vsfLien(c.mid,null))}" target="_blank" rel="noopener" style="margin-top:6px">🛒 Ouvrir VSF pour choisir le modèle</a>
      <div class="hint">Choisissez le modèle sur VSF et lancez la recherche. Puis copiez l'adresse de la page (appui sur la barre d'adresse) et collez-la ici : Jeffrey retiendra ce modèle et ouvrira directement les pare-brises la prochaine fois.</div>
      <input id="vsfLienIn" type="url" inputmode="url" placeholder="Coller le lien VSF des résultats"><button class="btn n full" id="vsfLienOk" style="margin-top:8px">💾 Retenir ce modèle</button>`;
   modal("Pare-brise chez VSF",`${hautHtml}
