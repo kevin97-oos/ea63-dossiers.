@@ -729,6 +729,11 @@ table.tb{width:100%;border-collapse:collapse;font-size:13.5px}
         <button class="btn v full" id="bPay" style="margin-top:10px">💶 Enregistrer un paiement</button>
       </div>
       <div class="card">
+        <h2>Relances automatiques</h2>
+        <div id="relBox" class="hint" style="margin:0"></div>
+        <label class="check"><input type="checkbox" id="relPause"> Ne plus relancer ce dossier</label>
+      </div>
+      <div class="card">
         <h2>Suivi</h2>
         <label>État du dossier</label>
         <select id="statut"><option value="devis">Devis (pas encore accepté)</option><option value="cours">En cours</option><option value="verif">À vérifier</option><option value="envoye">Envoyé à l'assurance</option><option value="paye">Payé</option></select>
@@ -1006,6 +1011,8 @@ const Cloud={
   async sigGet(t){const F=this.F;const s=await F.getDoc(F.doc(this.db,"signatures",t));return s.exists()?Object.assign({id:t},s.data()):null;},
   async sigAnnule(t){const F=this.F;try{await F.updateDoc(F.doc(this.db,"signatures",t),{statut:"annule"});}catch(e){}},
   async sigSigne(t,o){const F=this.F;await F.updateDoc(F.doc(this.db,"signatures",t),Object.assign(o,{statut:"signee",signeLe:F.serverTimestamp()}));},
+  relWatch(cb){const F=this.F;return F.onSnapshot(F.collection(this.db,"relances"),s=>{const m={};s.docs.forEach(d=>m[d.id]=d.data());cb(m);},e=>console.warn("relances",e.code));},
+  async relSet(id,o){const F=this.F;await F.setDoc(F.doc(this.db,"relances",id),o,{merge:true});},
   sigWatch(cb){const F=this.F;return F.onSnapshot(F.query(F.collection(this.db,"signatures"),F.where("statut","==","signee")),s=>cb(s.docs.map(d=>Object.assign({id:d.id},d.data()))),e=>console.warn("signatures",e.code));}
 };
 let DB=Local;
@@ -1086,7 +1093,7 @@ function header(){$("#eTitre").textContent=(S.numero?"N° "+S.numero+" · ":"")+
 function fillForm(){
   $$("[data-k]").forEach(el=>{const k=el.dataset.k;el.classList.remove("lu");if(el.type==="checkbox")el.checked=!!S[k];else el.value=S[k]??"";});
   $("#statut").value=CUR.statut||"cours";$("#preset").value="";
-  lignesUI();renderPhotos();renderTot();renderHist();renderPay();header();dvEtat();renderSig();
+  lignesUI();renderPhotos();renderTot();renderHist();renderPay();header();dvEtat();renderSig();renderRel();
   $("#archNote").innerHTML=CUR.archive&&!S.lignes.length?`<div class="warn">Dossier fait avant l'application : montant de la facture <b>${eur(CUR.ttc_archive)}</b> TTC. Le détail des lignes n'a pas été repris : ajoutez-les seulement si vous devez refaire les documents.</div>`:"";
 }
 $$("[data-k]").forEach(el=>{
@@ -1098,7 +1105,7 @@ $$("[data-k]").forEach(el=>{
     if(k==="marque"||k==="modele"){S.lignes.forEach(l=>{if(/^Pare-brise( |$)/.test(l.designation))l.designation="Pare-brise "+titre((S.marque+" "+S.modele).trim());});}
     header();renderTot();scheduleSave();});
 });
-$("#statut").onchange=()=>{const v=$("#statut").value;CUR.statut=v;log("État : "+STATUTS[v][0]);renderHist();header();saveNow();};
+$("#statut").onchange=()=>{const v=$("#statut").value;CUR.statut=v;log("État : "+STATUTS[v][0]);renderHist();header();renderRel();saveNow();};
 $("#preset").onchange=e=>{const p=PRESETS[e.target.value];if(!p)return;Object.assign(S,p);
   Object.keys(p).forEach(k=>{const el=$(`[data-k="${k}"]`);if(el)el.value=S[k];});scheduleSave();header();};
 
@@ -1138,6 +1145,22 @@ $$("[data-add]").forEach(b=>b.onclick=()=>{const k=b.dataset.add;S.lignes.push(.
 
 function renderHist(){const h=(CUR.historique||[]).slice().reverse();
   $("#hist").innerHTML=h.length?"<label>Historique</label>"+h.map(x=>`<div>${esc(x.txt)}<br><span>${quand(x.at)} · ${esc(qui(x.by))}</span></div>`).join(""):"";}
+/* Relances automatiques (envoyées chaque matin par GitHub, voir relances/relancer.py) */
+let REL={},RELW=null;const REL_JOURS=4;
+function relDe(d){return REL[d.id]||{};}
+function relEnvoi(d){if(d.envoi&&d.envoi.at)return d.envoi.at;const h=(d.historique||[]).slice().reverse().find(x=>/Envoy/.test(x.txt||""));return h?h.at:(d.updatedAt||(d.S&&d.S.date)||null);}
+function relProchaine(d){const r=relDe(d),L=r.liste||[];const t=[relEnvoi(d),L.length?r.derniere:null].filter(Boolean).map(x=>new Date(x).getTime());if(!t.length)return null;
+  const n=new Date(Math.max(...t)+REL_JOURS*864e5);return n<new Date()?"demain matin":"le "+n.toLocaleDateString("fr-FR");}
+function renderRel(){if(!CUR||!$("#relBox"))return;const r=relDe(CUR),L=r.liste||[];$("#relPause").checked=!!r.pause;
+  if(Store.mode!=="cloud"){$("#relBox").innerHTML="Les relances fonctionnent seulement avec l'espace en ligne.";return;}
+  let h=L.length?`<b>Relancé ${L.length} fois</b><br>`+L.slice().reverse().map(x=>`${quand(x.at)} → ${esc(x.to)}`).join("<br>"):"Pas encore relancé.";
+  if(r.pause)h+="<br><b>Relances arrêtées pour ce dossier.</b>";
+  else if(CUR.statut==="envoye"&&resteOf(CUR)>=0.01)h+=`<br>Prochaine relance par mail ${relProchaine(CUR)||"bientôt"} si le dossier n'est toujours pas payé.`+(S.mail_assureur||S.mail_expert?"":"<br><b>⚠️ Aucun mail d'assurance dans ce dossier : la relance sera à faire par téléphone.</b>");
+  else h+=`<br>Les relances partent tous les ${REL_JOURS} jours quand le dossier est « Envoyé » et pas encore payé.`;
+  $("#relBox").innerHTML=h;}
+$("#relPause").onchange=async()=>{if(!CUR||Store.mode!=="cloud")return;const v=$("#relPause").checked;
+  try{await Cloud.relSet(CUR.id,{pause:v,dossier:CUR.id,numero:String(S.numero||"")});log(v?"Relances automatiques arrêtées":"Relances automatiques réactivées");renderHist();saveNow();toast(v?"Ce dossier ne sera plus relancé":"Relances réactivées");}
+  catch(e){toast("Pas enregistré : "+(e.code||e.message));$("#relPause").checked=!v;}};
 $("#bDel").onclick=async()=>{if(!confirm("Supprimer définitivement ce dossier et ses photos ?"))return;await DB.del(CUR.id);CUR=null;go(VIEW);toast("Dossier supprimé");};
 
 /* ====================================================================
@@ -1525,7 +1548,7 @@ function mailModal(){const m=mailTexte();
 $("#bMail").onclick=mailModal;
 $("#bEnvoye").onclick=async()=>{const m=manque();if(m.length&&!confirm("Il manque encore : "+m.join(", ")+".\nMarquer quand même comme envoyé ?"))return;
   CUR.statut="envoye";CUR.envoi={at:nowIso(),by:ME||"cet appareil",to:S.mail_assureur||""};$("#statut").value="envoye";
-  log("Envoyé à l'assurance"+(S.mail_assureur?" ("+S.mail_assureur+")":""));renderHist();header();await saveNow();toast("Dossier marqué envoyé");};
+  log("Envoyé à l'assurance"+(S.mail_assureur?" ("+S.mail_assureur+")":""));renderHist();header();renderRel();await saveNow();toast("Dossier marqué envoyé");};
 
 
 /* ====================================================================
@@ -1565,7 +1588,7 @@ function donut(p,size=96){const r=38,c=2*Math.PI*r,v=Math.max(0,Math.min(1,p));
   <text x="50" y="49" text-anchor="middle" font-size="19" font-weight="800" fill="#fff">${Math.round(v*100)}%</text><text x="50" y="65" text-anchor="middle" font-size="9.5" fill="#b9f5b1" font-weight="700">ENCAISSÉ</text></svg>`;}
 function dosItem(d){const[s,c]=STATUTS[d.statut]||STATUTS.cours;const S1=d.S;
   return `<div class="dos" data-id="${esc(d.id)}"><div class="num"><small>N°</small>${esc(S1.numero||"—")}</div>
-    <div class="inf"><b>${esc(S1.client_nom||"Nouveau client")}</b><span>${esc([S1.immat,titre((S1.marque+" "+S1.modele).trim())].filter(Boolean).join(" · ")||"Véhicule à compléter")}</span><span>${esc(S1.assureur_court||"Assureur ?")}${d.updatedBy?" · "+esc(qui(d.updatedBy)):""}</span>${d.signature&&d.signature.statut==="signee"?'<span class="sgm">✍️ Cession signée</span>':(d.signature&&d.signature.statut==="attente"?'<span class="sgw">⏳ Signature en attente</span>':"")}</div>
+    <div class="inf"><b>${esc(S1.client_nom||"Nouveau client")}</b><span>${esc([S1.immat,titre((S1.marque+" "+S1.modele).trim())].filter(Boolean).join(" · ")||"Véhicule à compléter")}</span><span>${esc(S1.assureur_court||"Assureur ?")}${d.updatedBy?" · "+esc(qui(d.updatedBy)):""}</span>${d.signature&&d.signature.statut==="signee"?'<span class="sgm">✍️ Cession signée</span>':(d.signature&&d.signature.statut==="attente"?'<span class="sgw">⏳ Signature en attente</span>':"")}${d.statut==="envoye"&&relDe(d).liste&&relDe(d).liste.length?`<span class="sgw">🔔 Relancé ${relDe(d).liste.length}×</span>`:""}</div>
     <div class="rt"><div class="mt">${eur(ttcOf(d))}</div><span class="badge ${c}">${s}</span></div></div>`;}
 function bindDos(root){root.querySelectorAll(".dos,.frow[data-id]").forEach(e=>e.onclick=()=>openDossier(e.dataset.id));}
 function renderDash(){
@@ -1656,7 +1679,7 @@ function encModal(d){if(!d)return;
     if(resteOf(d)<0.01){d.statut="paye";d.historique.push({at:nowIso(),by:ME||"cet appareil",txt:"État : Payé"});}
     d.updatedAt=nowIso();d.updatedBy=ME||"cet appareil";
     $("#modal").classList.add("hide");
-    if(own){$("#statut").value=CUR.statut;renderPay();renderHist();header();await saveNow();}
+    if(own){$("#statut").value=CUR.statut;renderPay();renderHist();header();renderRel();await saveNow();}
     else{try{await DB.save(d);toast("Paiement enregistré");}catch(e){toast("Pas enregistré : "+(e.code||e.message));}}
     renderView();};
 }
@@ -1989,6 +2012,7 @@ async function startData(){
   await seedArchives();
   if(unwatch)unwatch();unwatch=DB.watch(a=>{ALL=a.filter(d=>d.type!=="pret");PRETS=a.filter(d=>d.type==="pret");renderView();setTimeout(nettoyer,1500);integrerSigs();});
   if(Store.mode==="cloud"&&!SIGW)SIGW=Cloud.sigWatch(l=>{SIGS=l;integrerSigs();});
+  if(Store.mode==="cloud"&&!RELW)RELW=Cloud.relWatch(m=>{REL=m;renderRel();renderView();});
   $("#who").textContent=Store.mode==="cloud"?`Connecté : ${ME}`:"Mode essai : les dossiers restent sur cet appareil (pas encore relié à l'espace en ligne).";
   $("#dUser").innerHTML=Store.mode==="cloud"?`Connecté : <b>${esc(qui(ME))}</b>`:"Mode essai";
   VIEW="dash";
