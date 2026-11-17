@@ -1320,16 +1320,18 @@ function jDire(html){if(!jSon||!window.speechSynthesis)return;
   const t=html.replace(/<br\s*\/?>/gi,". ").replace(/<[^>]+>/g,"").replace(/&amp;/g,"et").replace(/&[a-z#0-9]+;/gi," ").replace(/€/g," euros").replace(/•/g,"").replace(/·/g,",").replace(/ – /g,", ").replace(/N° /g,"numéro ").replace(/[\u00a0\u202f]/g," ").replace(/⚠️|✍️|⏳|👍|🤵/g,"");
   speechSynthesis.cancel();const v=jVoix();
   (t.match(/[^.!?\n]+[.!?\n]*/g)||[t]).map(x=>x.trim()).filter(x=>x.length>1).slice(0,25).forEach(ph=>{
-    const u=new SpeechSynthesisUtterance(ph);u.lang="fr-FR";u.rate=1;u.pitch=1;if(v)u.voice=v;speechSynthesis.speak(u);});}
+    const u=new SpeechSynthesisUtterance(ph);u.lang="fr-FR";u.rate=1.1;u.pitch=1;if(v)u.voice=v;speechSynthesis.speak(u);});}
 if(window.speechSynthesis){speechSynthesis.getVoices();speechSynthesis.onvoiceschanged=()=>speechSynthesis.getVoices();}
 function jEcoute(){const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(!SR){$("#jEtat").innerHTML="Le micro n'est pas disponible ici : appuyez dans la case du bas puis sur le 🎤 du clavier pour dicter.";$("#jIn").focus();return;}
   if(jRec){jRec.stop();return;}
   jRec=new SR();jRec.lang="fr-FR";jRec.interimResults=true;jRec.continuous=false;let fin="";
   jRec.onstart=()=>{$("#jMic").classList.add("on");$("#jEtat").textContent="Je vous écoute…";};
-  jRec.onresult=e=>{let t="";for(const r of e.results){t+=r[0].transcript;if(r.isFinal)fin=t;}$("#jEtat").textContent=t;};
+  let silence=null;
+  jRec.onresult=e=>{let t="";for(const r of e.results){t+=r[0].transcript;if(r.isFinal)fin=t;}$("#jEtat").textContent=t;
+    if(t.trim()){fin=fin||"";clearTimeout(silence);silence=setTimeout(()=>{if(!fin)fin=t;try{jRec&&jRec.stop();}catch(err){}},1000);}};
   jRec.onerror=e=>{$("#jEtat").textContent=e.error==="not-allowed"?"Autorisez le micro pour l'appli dans les réglages de l'iPhone.":"Je n'ai pas entendu, réessayez.";};
-  jRec.onend=()=>{$("#jMic").classList.remove("on");jRec=null;const q=(fin||"").trim()||($("#jEtat").textContent!=="Je vous écoute…"?"":"");
+  jRec.onend=()=>{clearTimeout(silence);$("#jMic").classList.remove("on");jRec=null;const q=(fin||"").trim()||($("#jEtat").textContent!=="Je vous écoute…"?"":"");
     if(fin.trim()){jParle=true;$("#jIn").value=fin.trim();$("#jForm").requestSubmit();$("#jEtat").textContent="Appuyez sur le micro et parlez";}};
   try{jRec.start();}catch(err){jRec=null;$("#jEtat").textContent="Micro indisponible, réessayez.";}}
 $("#jMic").onclick=()=>{if(window.speechSynthesis)speechSynthesis.cancel();jDebloque();jEcoute();};
@@ -1384,6 +1386,9 @@ $("#jForm").onsubmit=e=>{e.preventDefault();jDebloque();const q=$("#jIn").value.
       jAdd(r,"j");jDire(r);setTimeout(async()=>{$("#jef").classList.add("hide");await openDossier(d.id);setTab("vehicule");vsfModal();},900);return;}
     if(!D.length){const r="Pour quel dossier ? Dites par exemple : commande le pare-brise du dossier 52.";jAdd(r,"j");jDire(r);return;}}
   const parle=jParle;jParle=false;
+  const nq=sansAcc(q);let loc="";try{loc=jRepondre(q);}catch(err){}
+  const pourIA=/redig|ecri|mail|message|lettre|pourquoi|conseil|explique|resume|compare|aide|comment|que faire|propose|priorit|premier|urgent/.test(nq);
+  if(loc&&!/^Je n'ai pas trouvé/.test(loc)&&!pourIA){jAdd(loc,"j");jParle=parle;jDire(loc);jParle=false;return;}
   if((JEFFREY_URL||JEFFREY_IA)&&Store.mode==="cloud"){const att=document.createElement("div");att.className="jm j";att.textContent="…";$("#jMsgs").appendChild(att);$("#jMsgs").scrollTop=1e9;
     jClaude(q).then(r=>{att.remove();jAdd(r,"j");jParle=parle;jDire(r);jParle=false;})
       .catch(err=>{att.remove();console.warn("Jeffrey",err);let r;try{r=jRepondre(q);}catch(e){r="Oups, je n'ai pas réussi à lire les dossiers.";}
