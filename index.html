@@ -818,9 +818,9 @@ const REGL_LIGNE = 'Règlement : chèque, carte bancaire, espèces ou virement';
 const DERNIER_NUMERO_AVANT_APPLI = 51;
 const JEFFREY_URL = ""; // relais Claude payant (Worker Cloudflare) – non utilisé
 const JEFFREY_IA = true; // IA gratuite Gemini via Firebase AI Logic (à activer dans la console Firebase)
-const JEFFREY_MODELES = ["gemini-2.5-flash","gemini-2.5-flash-lite","gemini-flash-latest"];
+const JEFFREY_MODELES = ["gemini-2.5-flash-lite","gemini-2.5-flash","gemini-flash-lite-latest","gemini-flash-latest"];
 const JEFFREY_CONSIGNE = `Tu es Jeffrey, l'assistant du garage EXPERT AUTO 63 (carrosserie et pare-brise, Riom).
-Tu réponds en français, comme à l'oral : phrases courtes et simples, sans tableau, sans markdown, sans astérisques.
+Tu réponds en français, comme à l'oral : va droit au but, 1 à 4 phrases claires et complètes, sans tableau, sans liste à puces, sans markdown, sans astérisques. Écris les sigles et montants pour qu'ils se lisent bien à voix haute.
 Tu t'appuies uniquement sur les données des dossiers fournies (JSON) et sur la date du jour. Si l'information n'y est pas, dis-le simplement.
 Montants en euros avec une virgule (ex. 974,45 €). Dates au format jour/mois.
 Statuts : devis ; cours = en cours ; verif = à vérifier ; envoye = envoyé à l'assurance ; paye = payé.
@@ -1311,12 +1311,14 @@ let jSon=true;try{jSon=localStorage.getItem("jef_son")!=="0";}catch(e){}
 function jSonUI(){const b=document.getElementById("jSon");if(b)b.textContent=jSon?"🔊":"🔇";}
 /* iPhone : la voix doit être « débloquée » par un appui avant de pouvoir parler plus tard */
 function jDebloque(){if(!window.speechSynthesis)return;try{const u=new SpeechSynthesisUtterance(" ");u.volume=0;u.lang="fr-FR";speechSynthesis.speak(u);}catch(e){}}
-function jVoix(){const V=speechSynthesis.getVoices().filter(v=>/^fr/i.test(v.lang));return V.find(v=>/thomas|daniel|male|homme/i.test(v.name))||V.find(v=>/fr-FR/i.test(v.lang))||V[0]||null;}
+function jVoix(){const V=speechSynthesis.getVoices().filter(v=>/^fr/i.test(v.lang)),FR=V.filter(v=>/fr-FR/i.test(v.lang));
+  const top=x=>/premium|amélior|enhanced|siri/i.test(x.name);
+  return FR.find(v=>top(v)&&/thomas|daniel|siri/i.test(v.name))||FR.find(top)||FR.find(v=>/thomas/i.test(v.name))||FR[0]||V[0]||null;}
 function jDire(html){if(!jSon||!window.speechSynthesis)return;
   const t=html.replace(/<br\s*\/?>/gi,". ").replace(/<[^>]+>/g,"").replace(/&amp;/g,"et").replace(/&[a-z#0-9]+;/gi," ").replace(/€/g," euros").replace(/•/g,"").replace(/·/g,",").replace(/ – /g,", ").replace(/N° /g,"numéro ").replace(/[\u00a0\u202f]/g," ").replace(/⚠️|✍️|⏳|👍|🤵/g,"");
   speechSynthesis.cancel();const v=jVoix();
   (t.match(/[^.!?\n]+[.!?\n]*/g)||[t]).map(x=>x.trim()).filter(x=>x.length>1).slice(0,25).forEach(ph=>{
-    const u=new SpeechSynthesisUtterance(ph);u.lang="fr-FR";u.rate=1.05;if(v)u.voice=v;speechSynthesis.speak(u);});}
+    const u=new SpeechSynthesisUtterance(ph);u.lang="fr-FR";u.rate=1;u.pitch=1;if(v)u.voice=v;speechSynthesis.speak(u);});}
 if(window.speechSynthesis){speechSynthesis.getVoices();speechSynthesis.onvoiceschanged=()=>speechSynthesis.getVoices();}
 function jEcoute(){const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(!SR){$("#jEtat").innerHTML="Le micro n'est pas disponible ici : appuyez dans la case du bas puis sur le 🎤 du clavier pour dicter.";$("#jIn").focus();return;}
@@ -1332,7 +1334,8 @@ $("#jMic").onclick=()=>{if(window.speechSynthesis)speechSynthesis.cancel();jDebl
 $("#jSon").onclick=()=>{jSon=!jSon;try{localStorage.setItem("jef_son",jSon?"1":"0");}catch(e){}jSonUI();if(jSon){jDebloque();jDire("Je vous parle à voix haute.");}else speechSynthesis.cancel();};
 /* Jeffrey + Claude : envoie la question et un résumé des dossiers au relais */
 let jHisto=[];
-function jDonnees(){return ALL.filter(d=>d.S).map(d=>{const S1=d.S,r=relInfo(d),t=ttcOf(d),p=paidOf(d);return{
+function jDonnees(){const lim=new Date(Date.now()-90*864e5).toISOString().slice(0,10);
+  return ALL.filter(d=>d.S&&!(d.statut==="paye"&&(d.S.date||"")<lim)).map(d=>{const S1=d.S,r=relInfo(d),t=ttcOf(d),p=paidOf(d);return{
   n:S1.numero||"",id:d.id,client:((S1.client_civ||"")+" "+(S1.client_nom||"")).trim(),tel:S1.client_tel||"",statut:d.statut,type:S1.sinistre_type||"",
   vehicule:titre(((S1.marque||"")+" "+(S1.modele||"")).trim()),immat:S1.immat||"",assureur:S1.assureur_court||"",sinistre:S1.n_sinistre||"",contrat:S1.n_contrat||"",
   expertise:S1.exp_num||"",date_facture:S1.date||"",envoye_le:d.envoi&&d.envoi.at?d.envoi.at.slice(0,10):"",ttc:t,encaisse:p,reste:r2(Math.max(0,t-p)),
@@ -1344,12 +1347,14 @@ async function jGemini(q){
     .concat(jHisto.map(m=>({role:m.role==="assistant"?"model":"user",parts:[{text:m.texte}]})),[{role:"user",parts:[{text:q}]}]);
   const h={"Content-Type":"application/json","x-goog-api-key":FIREBASE_CONFIG.apiKey,"X-Firebase-Appid":FIREBASE_CONFIG.appId};
   try{if(Cloud.auth&&Cloud.auth.currentUser)h.Authorization="Firebase "+await Cloud.auth.currentUser.getIdToken();}catch(e){}
-  let derr="";
-  for(const m of JEFFREY_MODELES){
-    const r=await fetch(`https://firebasevertexai.googleapis.com/v1beta/projects/${FIREBASE_CONFIG.projectId}/models/${m}:generateContent`,{method:"POST",headers:h,
-      body:JSON.stringify({systemInstruction:{parts:[{text:JEFFREY_CONSIGNE}]},contents,generationConfig:{maxOutputTokens:800,temperature:0.3}})});
-    const d=await r.json().catch(()=>({}));
-    if(r.ok){const t=((d.candidates||[])[0]||{}).content;const txt=t?(t.parts||[]).map(p=>p.text||"").join("").trim():"";if(txt)return txt;derr="réponse vide";continue;}
+  let derr="";let ordre=JEFFREY_MODELES.slice();try{const ok=localStorage.getItem("jef_modele");if(ok&&ordre.includes(ok))ordre=[ok].concat(ordre.filter(x=>x!==ok));}catch(e){}
+  for(const m of ordre){
+    const ctl=new AbortController(),to=setTimeout(()=>ctl.abort(),15000);
+    let r;try{r=await fetch(`https://firebasevertexai.googleapis.com/v1beta/projects/${FIREBASE_CONFIG.projectId}/models/${m}:generateContent`,{method:"POST",headers:h,signal:ctl.signal,
+      body:JSON.stringify({systemInstruction:{parts:[{text:JEFFREY_CONSIGNE}]},contents,generationConfig:{maxOutputTokens:400,temperature:0.2,thinkingConfig:{thinkingBudget:0}}})});}
+    catch(e){clearTimeout(to);derr="trop long";continue;}
+    clearTimeout(to);const d=await r.json().catch(()=>({}));
+    if(r.ok){const t=((d.candidates||[])[0]||{}).content;const txt=t?(t.parts||[]).filter(p=>!p.thought).map(p=>p.text||"").join("").trim():"";if(txt){try{localStorage.setItem("jef_modele",m);}catch(e){}return txt;}derr="réponse vide";continue;}
     derr=(d.error&&d.error.message)||("erreur "+r.status);if(r.status!==404&&r.status!==400)break;}
   throw new Error(derr);}
 async function jClaude(q){
