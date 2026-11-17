@@ -674,6 +674,7 @@ table.tb{width:100%;border-collapse:collapse;font-size:13.5px}
         <div class="row"><div><label>Immatriculation</label><input data-k="immat"></div><div><label>1re mise en circulation</label><input data-k="mec" placeholder="JJ/MM/AAAA"></div></div>
         <div class="row"><div><label>VIN</label><input data-k="vin"></div>
           <div><label>Énergie</label><select data-k="energie"><option>Gazole</option><option>Essence</option><option>Hybride</option><option>Électrique</option><option>GPL</option></select></div></div>
+        <button class="btn v full" id="bVsf" style="margin-top:12px">🛒 Commander le pare-brise chez VSF</button>
       </div>
     </div>
 
@@ -1384,6 +1385,27 @@ $("#jForm").onsubmit=e=>{e.preventDefault();jDebloque();const q=$("#jIn").value.
         jAdd(r+'<br><small style="color:#888">(réponse simple : l’IA ne répond pas en ce moment – '+esc(String(err&&err.message||err).slice(0,120))+')</small>',"j");jParle=parle;jDire(r);jParle=false;});
     return;}
   setTimeout(()=>{let r;try{r=jRepondre(q);}catch(err){r="Oups, je n'ai pas réussi à lire les dossiers.";console.warn(err);}jAdd(r,"j");jParle=parle;jDire(r);jParle=false;},250);};
+
+/* Commande pare-brise chez VSF : infos à copier + ouverture de l'espace client */
+async function vsfUrl(){try{const m=await DB.meta("vsf_url");return m&&m.v||"";}catch(e){return"";}}
+async function vsfModal(){const S1=S,an=(S1.mec||"").match(/(19|20)\d\d/);const url=await vsfUrl();
+  const L=[["Immatriculation",S1.immat],["VIN (n° de série)",S1.vin],["Marque",S1.marque],["Modèle",S1.modele],["Année",an?an[0]:""],["1re mise en circulation",S1.mec],["Énergie",S1.energie]].filter(x=>x[1]);
+  const tout=L.map(([k,v])=>k+" : "+v).join("\n");
+  modal("Pare-brise chez VSF",`${L.length?"":`<div class="warn">Remplissez d'abord la plaque ou le VIN dans l'onglet Véhicule.</div>`}
+   <div style="background:#fff;border:1px solid #dcdedb;border-radius:12px;padding:4px 12px">${L.map(([k,v])=>`<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid #eee;font-size:14px"><span style="color:#555">${esc(k)}</span><span><b>${esc(v)}</b> <button class="btn c s" data-cpv="${esc(v)}" style="padding:4px 8px;margin-left:4px">Copier</button></span></div>`).join("")}</div>
+   <button class="btn c full" id="vsfAll" style="margin-top:10px">📋 Tout copier</button>
+   ${url?`<a class="btn v full" id="vsfGo" href="${esc(url)}" target="_blank" rel="noopener" style="margin-top:10px">🛒 Ouvrir mon espace VSF</a>
+     <button class="btn c s" id="vsfChg" style="margin-top:8px">Changer l'adresse VSF</button>`
+    :`<label style="margin-top:12px">Adresse de votre espace client VSF (une seule fois)</label><input id="vsfIn" type="url" inputmode="url" placeholder="https://…"><button class="btn v full" id="vsfSave" style="margin-top:8px">Enregistrer et ouvrir</button>`}
+   <div class="hint">Le VIN est copié en premier : collez-le dans la recherche VSF, puis mettez le pare-brise au panier.</div>`);
+  $$("#mB [data-cpv]").forEach(b=>b.onclick=()=>copier(b.dataset.cpv));
+  $("#vsfAll").onclick=()=>copier(tout);
+  const noter=()=>{log("Pare-brise à commander chez VSF");renderHist();saveNow();};
+  if($("#vsfGo"))$("#vsfGo").onclick=()=>{copier(S1.vin||S1.immat||"");noter();};
+  if($("#vsfChg"))$("#vsfChg").onclick=async()=>{const u=prompt("Nouvelle adresse de l'espace VSF :",url);if(u&&/^https?:\/\//.test(u.trim())){await DB.setMeta("vsf_url",u.trim());vsfModal();}};
+  if($("#vsfSave"))$("#vsfSave").onclick=async()=>{let u=$("#vsfIn").value.trim();if(u&&!/^https?:\/\//.test(u))u="https://"+u;if(!u)return toast("Collez l'adresse du site VSF");
+    try{await DB.setMeta("vsf_url",u);}catch(e){}copier(S1.vin||S1.immat||"");noter();window.open(u,"_blank");vsfModal();};}
+$("#bVsf").onclick=vsfModal;
 
 $("#relPause").onchange=async()=>{if(!CUR||Store.mode!=="cloud")return;const v=$("#relPause").checked;
   try{await Cloud.relSet(CUR.id,{pause:v,dossier:CUR.id,numero:String(S.numero||"")});log(v?"Relances automatiques arrêtées":"Relances automatiques réactivées");renderHist();saveNow();toast(v?"Ce dossier ne sera plus relancé":"Relances réactivées");}
