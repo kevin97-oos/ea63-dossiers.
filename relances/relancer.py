@@ -14,7 +14,7 @@ Option : DRY_RUN=1 pour tout afficher sans rien envoyer ni enregistrer.
 import json, os, smtplib, ssl, sys, urllib.request, urllib.error, urllib.parse
 from datetime import datetime, timezone, timedelta
 from email.message import EmailMessage
-from email.utils import formataddr, make_msgid
+from email.utils import formataddr, formatdate
 
 API_KEY = "AIzaSyB-MPzuy0ugXbozC8_YAMlIA52JU4GIUsg"
 PROJET = "ea63-aea28"
@@ -176,8 +176,7 @@ Nous vous avons adressé {deja} le dossier de votre assuré{e_} {civ} {nom} conc
 À ce jour, nous n'avons pas reçu le règlement de {eur(attendu)}.
 {"Il s'agit de notre " + rang.lower() + " pour ce dossier. " if n > 1 else ""}Nous vous remercions de bien vouloir procéder au virement dans les meilleurs délais, ou de nous indiquer si une pièce manque au dossier.
 
-Au titre de la cession de créance, le règlement est à effectuer directement à notre société :
-EXPERT AUTO 63 — IBAN FR76 3000 3020 3800 0202 5295 914 — BIC SOGEFRPP
+Au titre de la cession de créance, le règlement est à effectuer directement à notre société, sur le compte indiqué dans la cession de créance qui vous a été transmise.
 
 Nous restons à votre disposition pour tout complément.
 
@@ -198,8 +197,7 @@ class Boite:
         if cc:
             m["Cc"] = ", ".join(cc)
         m["Subject"] = objet
-        m["Reply-To"] = EXPEDITEUR
-        m["Message-ID"] = make_msgid(domain="yahoo.com")
+        m["Date"] = formatdate(localtime=True)
         m.set_content(corps)
         dest = list(to) + list(cc) + ([EXPEDITEUR] if copie_garage else [])
         if DRY:
@@ -224,7 +222,7 @@ def main():
         DRY = False
         d = next((x for x in dossiers.values() if x.get("statut") == "envoye"), None) or next(iter(dossiers.values()))
         objet, corps = texte_relance(d, 1, ttc_of(d) - paye_of(d), date_envoi(d))
-        boite.envoyer([TEST], [], "[TEST] " + objet, "*** MAIL DE TEST – n'a pas été envoyé à l'assurance ***\n\n" + corps, copie_garage=False)
+        boite.envoyer([TEST], [], objet, corps, copie_garage=False)
         boite.fermer()
         print("Mail de test envoyé à", TEST)
         return
