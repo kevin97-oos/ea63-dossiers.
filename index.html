@@ -1227,11 +1227,40 @@ function renderRelances(){
   const row=d=>{const i=relInfo(d);return `<div class="rrow" data-id="${esc(d.id)}"><div class="fn">${esc(d.S.numero||"—")}</div>
     <div class="ri"><b>${esc(d.S.client_nom||"Client ?")}</b><br>${esc(d.S.assureur_court||"Assureur ?")} · ${esc(d.S.immat||"")} · reste <b style="font-size:13px">${eur(resteOf(d))}</b><br>
     ${i.n?`Dernière : ${quand(i.der.at)}<br>`:"Pas encore relancé<br>"}
-    ${i.pause?'<span class="warn2">Relances arrêtées</span>':(i.mail?`Prochaine : ${esc(i.proch||"bientôt")} → ${esc(i.mail)}`:'<span class="warn2">⚠️ Pas de mail : à relancer par téléphone</span>')}</div>
+    ${i.pause?'<span class="warn2">Relances arrêtées</span>':(i.mail?`Prochaine : ${esc(i.proch||"bientôt")} → ${esc(i.mail)}`:'<span class="warn2">⚠️ Pas de mail : à relancer par téléphone</span>')}
+    <div>${appelBtns(d)}</div></div>
     <div class="rn"><big>${i.n}</big>relance${i.n>1?"s":""}</div></div>`;};
   $("#rList").innerHTML=`<div class="mhd"><span>Dossiers non payés (${A.length})</span></div>`+(A.map(row).join("")||'<div class="empty">Aucun dossier en attente de paiement 👍</div>');
   $$("#rList .rrow").forEach(e=>e.onclick=()=>openDossier(e.dataset.id));
+  $$("#rList [data-call]").forEach(b=>b.onclick=ev=>{ev.stopPropagation();appelModal(b.dataset.call,b.dataset.qui);});
 }
+/* Appeler l'assurance / l'expert depuis la page Relances */
+function contactsDe(d){const S1=d.S,a=sansAcc((S1.assureur_affiche||"")+" "+(S1.assureur_court||""));
+  const ass=/europac/.test(a)?CONTACTS.find(c=>c.n==="EUROPAC"):CONTACTS.find(c=>c.tel&&!/expert/i.test(c.r)&&a.includes(sansAcc(c.n).split(/[ (]/)[0]));
+  const me=sansAcc(S1.mail_expert||"");const exp=me?CONTACTS.find(c=>c.mail&&sansAcc(c.mail)===me):null;
+  return{ass:ass&&ass.tel?ass:null,exp:exp&&exp.tel?exp:null};}
+function appelBtns(d){const c=contactsDe(d);let h="";
+  if(c.ass)h+=`<button class="btn v s" data-call="${esc(d.id)}" data-qui="ass" style="margin:8px 6px 0 0">📞 Appeler ${esc(c.ass.n.split(" (")[0])}</button>`;
+  if(c.exp)h+=`<button class="btn c s" data-call="${esc(d.id)}" data-qui="exp" style="margin-top:8px">📞 Expert</button>`;
+  if(!h)h='<div class="hint" style="margin:6px 0 0">Pas de numéro enregistré pour cet assureur (ajoutez-le dans « Assurances et experts »).</div>';
+  return h;}
+function appelModal(id,qui){const d=ALL.find(x=>x.id===id);if(!d)return;const c=contactsDe(d)[qui];if(!c)return;const S1=d.S,t=ttcOf(d),p=paidOf(d);
+  const env=d.envoi&&d.envoi.at?fr(d.envoi.at.slice(0,10)):"";const r=relInfo(d);
+  const refs=[S1.n_sinistre&&["N° de sinistre",S1.n_sinistre],S1.n_contrat&&["N° de contrat",S1.n_contrat],S1.n_client&&["N° sociétaire",S1.n_client],
+    S1.exp_num&&["Rapport d'expertise",S1.exp_num],["Assuré",((S1.client_civ||"")+" "+(S1.client_nom||"")).trim()],
+    ["Véhicule",(titre(((S1.marque||"")+" "+(S1.modele||"")).trim())+" "+(S1.immat||"")).trim()],["Facture",`n° ${S1.numero||"?"} du ${fr(S1.date)}`],
+    ["Montant attendu",eur(Math.max(0,t-p))],env&&["Dossier envoyé le",env],["Relances par mail",String(r.n)]].filter(Boolean);
+  modal("Appeler "+c.n,`<a class="btn v full" href="tel:${esc(c.tel)}" style="font-size:18px">📞 ${esc(c.telL||c.tel)}</a>
+   <label style="margin-top:14px">À avoir sous les yeux</label>
+   <div style="background:#fff;border:1px solid #dcdedb;border-radius:12px;padding:4px 12px">${refs.map(([k,v])=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid #eee;font-size:14px"><span style="color:#555">${esc(k)}</span><b style="text-align:right">${esc(v)}</b></div>`).join("")}</div>
+   <label>Ce qu'il faut dire</label>
+   <div class="hint" style="margin:0;color:#000;line-height:1.5">« Bonjour, garage Expert Auto 63 à Riom. J'appelle pour le règlement du sinistre ${esc(S1.n_sinistre||"de "+(S1.client_nom||"votre assuré"))}, ${esc(S1.client_civ||"")} ${esc(S1.client_nom||"")}. Nous avons une cession de créance signée et nous attendons le virement de ${eur(Math.max(0,t-p))}. Où en est le dossier, et quand le paiement sera-t-il fait ? »</div>
+   <label>Ce qu'on vous a répondu</label><textarea id="apNote" placeholder="Ex. paiement prévu sous 10 jours, interlocuteur : Mme Durand"></textarea>
+   <button class="btn n full" id="apOk" style="margin-top:10px">✓ Noter l'appel dans le dossier</button>`);
+  $("#apOk").onclick=async()=>{const n=$("#apNote").value.trim();d.historique=d.historique||[];
+    d.historique.push({at:nowIso(),by:ME||"cet appareil",txt:"Appel "+c.n+(n?" : "+n:"")});if(n)d.S.note=((d.S.note||"")+(d.S.note?"\n":"")+fr(today())+" appel "+c.n+" : "+n);
+    d.updatedAt=nowIso();d.updatedBy=ME||"cet appareil";try{await DB.save(d);toast("Appel noté");}catch(e){toast("Pas enregistré : "+(e.code||e.message));}
+    $("#modal").classList.add("hide");renderView();};}
 
 /* ====================================================================
    JEFFREY : répond aux questions sur les dossiers (sans internet, avec les données de l'appli)
