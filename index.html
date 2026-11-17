@@ -816,7 +816,17 @@ const PIED_DOS = 'EXPERT AUTO 63 — SARL au capital de 10 000 € — Siège so
 const IBAN_LIGNE = 'IBAN : FR76 3000 3020 3800 0202 5295 914 — BIC : SOGEFRPP';
 const REGL_LIGNE = 'Règlement : chèque, carte bancaire, espèces ou virement';
 const DERNIER_NUMERO_AVANT_APPLI = 51;
-const JEFFREY_URL = ""; // adresse du relais Claude (Worker Cloudflare). Vide = Jeffrey répond sans IA.
+const JEFFREY_URL = ""; // relais Claude payant (Worker Cloudflare) – non utilisé
+const JEFFREY_IA = true; // IA gratuite Gemini via Firebase AI Logic (à activer dans la console Firebase)
+const JEFFREY_MODELES = ["gemini-2.5-flash","gemini-2.5-flash-lite","gemini-flash-latest"];
+const JEFFREY_CONSIGNE = `Tu es Jeffrey, l'assistant du garage EXPERT AUTO 63 (carrosserie et pare-brise, Riom).
+Tu réponds en français, comme à l'oral : phrases courtes et simples, sans tableau, sans markdown, sans astérisques.
+Tu t'appuies uniquement sur les données des dossiers fournies (JSON) et sur la date du jour. Si l'information n'y est pas, dis-le simplement.
+Montants en euros avec une virgule (ex. 974,45 €). Dates au format jour/mois.
+Statuts : devis ; cours = en cours ; verif = à vérifier ; envoye = envoyé à l'assurance ; paye = payé.
+"reste" = ce qui n'est pas encore encaissé. "relances" = nombre de mails de relance automatiques envoyés à l'assurance (tous les 4 jours tant que ce n'est pas payé).
+Tu peux aider à rédiger un court message pour une assurance si on te le demande.
+Quand tu parles d'un dossier, cite son numéro et le nom du client.`;
 
 const PRESETS = {
   gmf:{assureur_court:"GMF",assureur_affiche:"GMF",assureur_ligne:"GMF Assurances, 148 rue Anatole France, 92597 Levallois-Perret Cedex",destinataire:"GMF ASSURANCES\nIndemnisation auto\n148 rue Anatole France\n92597 LEVALLOIS-PERRET CEDEX",mail_assureur:"indemnisation.auto@gmf.fr"},
@@ -1291,15 +1301,32 @@ function jDonnees(){return ALL.filter(d=>d.S).map(d=>{const S1=d.S,r=relInfo(d),
   expertise:S1.exp_num||"",date_facture:S1.date||"",envoye_le:d.envoi&&d.envoi.at?d.envoi.at.slice(0,10):"",ttc:t,encaisse:p,reste:r2(Math.max(0,t-p)),
   relances:r.n,derniere_relance:r.der?r.der.at.slice(0,10):"",relances_arretees:r.pause,mail_relance:r.mail,
   signature:d.signature?d.signature.statut:"",travaux:(S1.lignes||[]).map(l=>l.designation).filter(Boolean).slice(0,6).join(" ; "),note:S1.note||""};});}
+async function jGemini(q){
+  const contexte=`Date du jour : ${new Date().toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}\nDossiers (JSON) :\n${JSON.stringify(jDonnees())}`;
+  const contents=[{role:"user",parts:[{text:contexte}]},{role:"model",parts:[{text:"Bien reçu, je connais les dossiers."}]}]
+    .concat(jHisto.map(m=>({role:m.role==="assistant"?"model":"user",parts:[{text:m.texte}]})),[{role:"user",parts:[{text:q}]}]);
+  const h={"Content-Type":"application/json","x-goog-api-key":FIREBASE_CONFIG.apiKey,"X-Firebase-Appid":FIREBASE_CONFIG.appId};
+  try{if(Cloud.auth&&Cloud.auth.currentUser)h.Authorization="Firebase "+await Cloud.auth.currentUser.getIdToken();}catch(e){}
+  let derr="";
+  for(const m of JEFFREY_MODELES){
+    const r=await fetch(`https://firebasevertexai.googleapis.com/v1beta/projects/${FIREBASE_CONFIG.projectId}/models/${m}:generateContent`,{method:"POST",headers:h,
+      body:JSON.stringify({systemInstruction:{parts:[{text:JEFFREY_CONSIGNE}]},contents,generationConfig:{maxOutputTokens:800,temperature:0.3}})});
+    const d=await r.json().catch(()=>({}));
+    if(r.ok){const t=((d.candidates||[])[0]||{}).content;const txt=t?(t.parts||[]).map(p=>p.text||"").join("").trim():"";if(txt)return txt;derr="réponse vide";continue;}
+    derr=(d.error&&d.error.message)||("erreur "+r.status);if(r.status!==404&&r.status!==400)break;}
+  throw new Error(derr);}
 async function jClaude(q){
+  let rep;
+  if(!JEFFREY_URL)rep=await jGemini(q);else{
   const tok=Store.mode==="cloud"&&Cloud.auth&&Cloud.auth.currentUser?await Cloud.auth.currentUser.getIdToken():"";
   const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),30000);
   const r=await fetch(JEFFREY_URL,{method:"POST",signal:ctl.signal,headers:{"Content-Type":"application/json"},
     body:JSON.stringify({question:q,historique:jHisto,dossiers:jDonnees(),aujourdhui:new Date().toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long",year:"numeric"}),idToken:tok})});
-  clearTimeout(to);const d=await r.json();if(!r.ok||!d.reponse)throw new Error(d.erreur||"pas de réponse");
-  jHisto.push({role:"user",texte:q},{role:"assistant",texte:d.reponse});jHisto=jHisto.slice(-8);
+  clearTimeout(to);const d=await r.json();if(!r.ok||!d.reponse)throw new Error(d.erreur||"pas de réponse");rep=d.reponse;}
+  rep=rep.replace(/\*\*?/g,"");
+  jHisto.push({role:"user",texte:q},{role:"assistant",texte:rep});jHisto=jHisto.slice(-8);
   // liens vers les dossiers cités
-  let h=esc(d.reponse);ALL.filter(x=>x.S&&x.S.numero).forEach(x=>{h=h.replace(new RegExp("(N°|numéro|dossier)\\s?"+x.S.numero+"\\b","gi"),m=>`<a href="#" data-jo="${esc(x.id)}">${m}</a>`);});
+  let h=esc(rep);ALL.filter(x=>x.S&&x.S.numero).forEach(x=>{h=h.replace(new RegExp("(N°|numéro|dossier)\\s?"+x.S.numero+"\\b","gi"),m=>`<a href="#" data-jo="${esc(x.id)}">${m}</a>`);});
   return h;}
 function jOuvrir(){$("#jef").classList.remove("hide");
   if(!$("#jMsgs").children.length)jAdd("Bonjour, je suis Jeffrey 🤵\nDemandez-moi où en est un dossier, qui n'a pas payé, les relances…","j");
@@ -1309,10 +1336,10 @@ $("#jefB").onclick=jOuvrir;$("#jX").onclick=()=>{$("#jef").classList.add("hide")
 $("#jef").onclick=e=>{if(e.target.id==="jef")$("#jef").classList.add("hide");};
 $("#jForm").onsubmit=e=>{e.preventDefault();const q=$("#jIn").value.trim();if(!q)return;$("#jIn").value="";jAdd(esc(q),"u");
   const parle=jParle;jParle=false;
-  if(JEFFREY_URL){const att=document.createElement("div");att.className="jm j";att.textContent="…";$("#jMsgs").appendChild(att);$("#jMsgs").scrollTop=1e9;
+  if((JEFFREY_URL||JEFFREY_IA)&&Store.mode==="cloud"){const att=document.createElement("div");att.className="jm j";att.textContent="…";$("#jMsgs").appendChild(att);$("#jMsgs").scrollTop=1e9;
     jClaude(q).then(r=>{att.remove();jAdd(r,"j");jParle=parle;jDire(r);jParle=false;})
       .catch(err=>{att.remove();console.warn("Jeffrey",err);let r;try{r=jRepondre(q);}catch(e){r="Oups, je n'ai pas réussi à lire les dossiers.";}
-        jAdd(r+'<br><small style="color:#888">(réponse simple : Claude ne répond pas en ce moment)</small>',"j");jParle=parle;jDire(r);jParle=false;});
+        jAdd(r+'<br><small style="color:#888">(réponse simple : l’IA ne répond pas en ce moment – '+esc(String(err&&err.message||err).slice(0,120))+')</small>',"j");jParle=parle;jDire(r);jParle=false;});
     return;}
   setTimeout(()=>{let r;try{r=jRepondre(q);}catch(err){r="Oups, je n'ai pas réussi à lire les dossiers.";console.warn(err);}jAdd(r,"j");jParle=parle;jDire(r);jParle=false;},250);};
 
