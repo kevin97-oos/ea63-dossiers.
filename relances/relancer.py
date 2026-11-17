@@ -22,6 +22,7 @@ BASE = f"https://firestore.googleapis.com/v1/projects/{PROJET}/databases/(defaul
 EXPEDITEUR = os.environ.get("YAHOO_EMAIL", "expertauto63@yahoo.com")
 RELANCE_JOURS = int(os.environ.get("RELANCE_JOURS", "4"))
 DRY = os.environ.get("DRY_RUN", "") in ("1", "true", "oui")
+TEST = os.environ.get("TEST_EMAIL", "").strip()
 MAX_PAR_JOUR = int(os.environ.get("MAX_PAR_JOUR", "25"))
 NB = " "
 
@@ -218,6 +219,15 @@ def main():
     dossiers = lister("dossiers", token)
     etats = lister("relances", token)
     boite, faites, manuelles, erreurs = Boite(), [], [], []
+    if TEST:  # test d'envoi : une vraie relance d'exemple, envoyée seulement à l'adresse de test
+        global DRY
+        DRY = False
+        d = next((x for x in dossiers.values() if x.get("statut") == "envoye"), None) or next(iter(dossiers.values()))
+        objet, corps = texte_relance(d, 1, ttc_of(d) - paye_of(d), date_envoi(d))
+        boite.envoyer([TEST], [], "[TEST] " + objet, "*** MAIL DE TEST – n'a pas été envoyé à l'assurance ***\n\n" + corps, copie_garage=False)
+        boite.fermer()
+        print("Mail de test envoyé à", TEST)
+        return
     print(f"{len(dossiers)} dossiers lus – relance si {RELANCE_JOURS} jours sans réponse" + (" – ESSAI (rien n'est envoyé)" if DRY else ""))
 
     for did, d in sorted(dossiers.items(), key=lambda kv: str((kv[1].get("S") or {}).get("numero") or "")):

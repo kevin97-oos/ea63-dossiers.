@@ -9,6 +9,10 @@ on:
         description: "Essai : tout afficher sans rien envoyer"
         type: boolean
         default: true
+      test_email:
+        description: "Test : envoyer un exemple de relance seulement à cette adresse"
+        type: string
+        default: ""
 
 permissions:
   contents: write
@@ -29,6 +33,7 @@ jobs:
           APP_PASSWORD: ${{ secrets.APP_PASSWORD }}
           YAHOO_APP_PASSWORD: ${{ secrets.YAHOO_APP_PASSWORD }}
           RELANCE_JOURS: "4"
+          TEST_EMAIL: ${{ github.event_name == 'workflow_dispatch' && inputs.test_email || '' }}
           DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.essai && '1' || '' }}
         run: python3 relances/relancer.py
       # GitHub coupe les tâches planifiées d'un dépôt sans activité pendant 60 jours :
