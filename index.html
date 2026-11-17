@@ -827,6 +827,7 @@ Montants en euros avec une virgule (ex. 974,45 €). Dates au format jour/mois.
 Statuts : devis ; cours = en cours ; verif = à vérifier ; envoye = envoyé à l'assurance ; paye = payé.
 "reste" = ce qui n'est pas encore encaissé. "relances" = nombre de mails de relance automatiques envoyés à l'assurance (tous les 4 jours tant que ce n'est pas payé).
 Tu peux aider à rédiger un court message pour une assurance si on te le demande.
+Le fournisseur de pare-brise est VSF (client.myvsf.fr). Pour commander, il suffit de dire « commande le pare-brise du dossier » suivi du numéro : l'appli ouvre VSF avec le numéro de série (VIN) copié.
 Quand tu parles d'un dossier, cite son numéro et le nom du client.`;
 
 const PRESETS = {
@@ -1378,6 +1379,10 @@ function jOuvrir(){$("#jef").classList.remove("hide");
 $("#jefB").onclick=()=>{jDebloque();jSonUI();jOuvrir();};$("#jX").onclick=()=>{$("#jef").classList.add("hide");if(window.speechSynthesis)speechSynthesis.cancel();if(jRec)jRec.stop();};
 $("#jef").onclick=e=>{if(e.target.id==="jef")$("#jef").classList.add("hide");};
 $("#jForm").onsubmit=e=>{e.preventDefault();jDebloque();const q=$("#jIn").value.trim();if(!q)return;$("#jIn").value="";jAdd(esc(q),"u");
+  if(/command|vsf|panier/i.test(sansAcc(q))){const D=jTrouver(q);
+    if(D.length===1){const d=D[0],r=`Je prépare la commande du pare-brise pour le dossier ${esc(d.S.numero||"")}, ${esc(d.S.client_nom||"")}. Appuyez sur « Ouvrir mon espace VSF », le numéro de série est copié, collez-le dans la recherche.`;
+      jAdd(r,"j");jDire(r);setTimeout(async()=>{$("#jef").classList.add("hide");await openDossier(d.id);setTab("vehicule");vsfModal();},900);return;}
+    if(!D.length){const r="Pour quel dossier ? Dites par exemple : commande le pare-brise du dossier 52.";jAdd(r,"j");jDire(r);return;}}
   const parle=jParle;jParle=false;
   if((JEFFREY_URL||JEFFREY_IA)&&Store.mode==="cloud"){const att=document.createElement("div");att.className="jm j";att.textContent="…";$("#jMsgs").appendChild(att);$("#jMsgs").scrollTop=1e9;
     jClaude(q).then(r=>{att.remove();jAdd(r,"j");jParle=parle;jDire(r);jParle=false;})
@@ -1388,7 +1393,10 @@ $("#jForm").onsubmit=e=>{e.preventDefault();jDebloque();const q=$("#jIn").value.
 
 /* Commande pare-brise chez VSF : infos à copier + ouverture de l'espace client */
 async function vsfUrl(){try{const m=await DB.meta("vsf_url");return m&&m.v||"https://client.myvsf.fr/";}catch(e){return"https://client.myvsf.fr/";}}
-async function vsfModal(){const S1=S,an=(S1.mec||"").match(/(19|20)\d\d/);const url=await vsfUrl();
+async function vsfRecherche(){try{const m=await DB.meta("vsf_recherche");return m&&m.v||"";}catch(e){return"";}}
+async function vsfModal(){const S1=S,an=(S1.mec||"").match(/(19|20)\d\d/);let url=await vsfUrl();
+  const modele=await vsfRecherche();
+  if(modele&&(S1.vin||S1.immat))url=modele.replace(/\{vin\}/g,encodeURIComponent(S1.vin||"")).replace(/\{immat\}/g,encodeURIComponent((S1.immat||"").replace(/[\s-]/g,""))).replace(/\{plaque\}/g,encodeURIComponent(S1.immat||""));
   const L=[["Immatriculation",S1.immat],["VIN (n° de série)",S1.vin],["Marque",S1.marque],["Modèle",S1.modele],["Année",an?an[0]:""],["1re mise en circulation",S1.mec],["Énergie",S1.energie]].filter(x=>x[1]);
   const tout=L.map(([k,v])=>k+" : "+v).join("\n");
   modal("Pare-brise chez VSF",`${L.length?"":`<div class="warn">Remplissez d'abord la plaque ou le VIN dans l'onglet Véhicule.</div>`}
