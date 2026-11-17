@@ -40,7 +40,8 @@ def http(method, url, body=None, token=None):
 
 def connexion():
     r = http("POST", "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=" + API_KEY,
-             {"email": os.environ["APP_EMAIL"], "password": os.environ["APP_PASSWORD"], "returnSecureToken": True})
+             {"email": os.environ["APP_EMAIL"].strip().rstrip(".").lower(), "password": os.environ["APP_PASSWORD"].strip(),
+              "returnSecureToken": True})
     return r["idToken"]
 
 def dec(v):
