@@ -798,7 +798,7 @@ table.tb{width:100%;border-collapse:collapse;font-size:13.5px}
 <button id="jefB" class="hide" aria-label="Demander à Jeffrey">🤵<small>Jeffrey</small></button>
 <div id="jef" class="hide">
   <div class="jp">
-    <div class="jh"><span class="av">🤵</span><div><b>Jeffrey</b><small>Votre assistant dossiers</small></div><button id="jX">✕</button></div>
+    <div class="jh"><span class="av">🤵</span><div><b>Jeffrey</b><small>Votre assistant dossiers</small></div><button id="jSon" style="margin-left:auto">🔊</button><button id="jX" style="margin-left:6px">✕</button></div>
     <div id="jMsgs"></div>
     <div id="jSug"></div>
     <div id="jVoix"><button type="button" id="jMic">🎤</button><div id="jEtat">Appuyez sur le micro et parlez</div></div>
@@ -1307,13 +1307,20 @@ function jRepondre(q){const n=sansAcc(q),F=ALL.filter(d=>d.S);
   return"Je n'ai pas trouvé. Donnez-moi un <b>numéro de facture</b>, un <b>nom de client</b>, une <b>plaque</b> ou un <b>assureur</b>. Exemples : « dossier 48 », « Lavaud », « qui n'a pas payé ? », « relances ».";}
 /* Voix : Jeffrey écoute et répond à voix haute */
 let jRec=null,jParle=false;
-function jDire(html){if(!jParle||!window.speechSynthesis)return;const t=html.replace(/<[^>]+>/g,"").replace(/€/g," euros").replace(/•/g,"").replace(/N° /g,"numéro ").replace(/\u00a0/g," ");
-  speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t.slice(0,600));u.lang="fr-FR";u.rate=1.05;
-  const v=speechSynthesis.getVoices().find(v=>/^fr/i.test(v.lang)&&/thomas|male|homme/i.test(v.name))||speechSynthesis.getVoices().find(v=>/^fr/i.test(v.lang));if(v)u.voice=v;speechSynthesis.speak(u);}
+let jSon=true;try{jSon=localStorage.getItem("jef_son")!=="0";}catch(e){}
+function jSonUI(){const b=document.getElementById("jSon");if(b)b.textContent=jSon?"🔊":"🔇";}
+/* iPhone : la voix doit être « débloquée » par un appui avant de pouvoir parler plus tard */
+function jDebloque(){if(!window.speechSynthesis)return;try{const u=new SpeechSynthesisUtterance(" ");u.volume=0;u.lang="fr-FR";speechSynthesis.speak(u);}catch(e){}}
+function jVoix(){const V=speechSynthesis.getVoices().filter(v=>/^fr/i.test(v.lang));return V.find(v=>/thomas|daniel|male|homme/i.test(v.name))||V.find(v=>/fr-FR/i.test(v.lang))||V[0]||null;}
+function jDire(html){if(!jSon||!window.speechSynthesis)return;
+  const t=html.replace(/<br\s*\/?>/gi,". ").replace(/<[^>]+>/g,"").replace(/&amp;/g,"et").replace(/&[a-z#0-9]+;/gi," ").replace(/€/g," euros").replace(/•/g,"").replace(/N° /g,"numéro ").replace(/[\u00a0\u202f]/g," ").replace(/⚠️|✍️|⏳|👍|🤵/g,"");
+  speechSynthesis.cancel();const v=jVoix();
+  (t.match(/[^.!?\n]+[.!?\n]*/g)||[t]).map(x=>x.trim()).filter(x=>x.length>1).slice(0,25).forEach(ph=>{
+    const u=new SpeechSynthesisUtterance(ph);u.lang="fr-FR";u.rate=1.05;if(v)u.voice=v;speechSynthesis.speak(u);});}
+if(window.speechSynthesis){speechSynthesis.getVoices();speechSynthesis.onvoiceschanged=()=>speechSynthesis.getVoices();}
 function jEcoute(){const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(!SR){$("#jEtat").innerHTML="Le micro n'est pas disponible ici : appuyez dans la case du bas puis sur le 🎤 du clavier pour dicter.";$("#jIn").focus();return;}
   if(jRec){jRec.stop();return;}
-  if(window.speechSynthesis)speechSynthesis.cancel();
   jRec=new SR();jRec.lang="fr-FR";jRec.interimResults=true;jRec.continuous=false;let fin="";
   jRec.onstart=()=>{$("#jMic").classList.add("on");$("#jEtat").textContent="Je vous écoute…";};
   jRec.onresult=e=>{let t="";for(const r of e.results){t+=r[0].transcript;if(r.isFinal)fin=t;}$("#jEtat").textContent=t;};
@@ -1321,7 +1328,8 @@ function jEcoute(){const SR=window.SpeechRecognition||window.webkitSpeechRecogni
   jRec.onend=()=>{$("#jMic").classList.remove("on");jRec=null;const q=(fin||"").trim()||($("#jEtat").textContent!=="Je vous écoute…"?"":"");
     if(fin.trim()){jParle=true;$("#jIn").value=fin.trim();$("#jForm").requestSubmit();$("#jEtat").textContent="Appuyez sur le micro et parlez";}};
   try{jRec.start();}catch(err){jRec=null;$("#jEtat").textContent="Micro indisponible, réessayez.";}}
-$("#jMic").onclick=jEcoute;
+$("#jMic").onclick=()=>{if(window.speechSynthesis)speechSynthesis.cancel();jDebloque();jEcoute();};
+$("#jSon").onclick=()=>{jSon=!jSon;try{localStorage.setItem("jef_son",jSon?"1":"0");}catch(e){}jSonUI();if(jSon){jDebloque();jDire("Je vous parle à voix haute.");}else speechSynthesis.cancel();};
 /* Jeffrey + Claude : envoie la question et un résumé des dossiers au relais */
 let jHisto=[];
 function jDonnees(){return ALL.filter(d=>d.S).map(d=>{const S1=d.S,r=relInfo(d),t=ttcOf(d),p=paidOf(d);return{
@@ -1361,9 +1369,9 @@ function jOuvrir(){$("#jef").classList.remove("hide");
   if(!$("#jMsgs").children.length)jAdd("Bonjour, je suis Jeffrey 🤵\nDemandez-moi où en est un dossier, qui n'a pas payé, les relances…","j");
   $("#jSug").innerHTML=["Qui n'a pas payé ?","Relances","Ce mois-ci","Dossiers en cours"].map(t=>`<button type="button">${t}</button>`).join("");
   $$("#jSug button").forEach(b=>b.onclick=()=>{$("#jIn").value=b.textContent;$("#jForm").requestSubmit();});}
-$("#jefB").onclick=jOuvrir;$("#jX").onclick=()=>{$("#jef").classList.add("hide");if(window.speechSynthesis)speechSynthesis.cancel();if(jRec)jRec.stop();};
+$("#jefB").onclick=()=>{jDebloque();jSonUI();jOuvrir();};$("#jX").onclick=()=>{$("#jef").classList.add("hide");if(window.speechSynthesis)speechSynthesis.cancel();if(jRec)jRec.stop();};
 $("#jef").onclick=e=>{if(e.target.id==="jef")$("#jef").classList.add("hide");};
-$("#jForm").onsubmit=e=>{e.preventDefault();const q=$("#jIn").value.trim();if(!q)return;$("#jIn").value="";jAdd(esc(q),"u");
+$("#jForm").onsubmit=e=>{e.preventDefault();jDebloque();const q=$("#jIn").value.trim();if(!q)return;$("#jIn").value="";jAdd(esc(q),"u");
   const parle=jParle;jParle=false;
   if((JEFFREY_URL||JEFFREY_IA)&&Store.mode==="cloud"){const att=document.createElement("div");att.className="jm j";att.textContent="…";$("#jMsgs").appendChild(att);$("#jMsgs").scrollTop=1e9;
     jClaude(q).then(r=>{att.remove();jAdd(r,"j");jParle=parle;jDire(r);jParle=false;})
