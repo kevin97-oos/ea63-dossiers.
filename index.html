@@ -967,7 +967,7 @@ Quand tu parles d'un dossier, cite son numéro et le nom du client.`;
 
 const PRESETS = {
   gmf:{assureur_court:"GMF",assureur_affiche:"GMF",assureur_ligne:"GMF Assurances, 148 rue Anatole France, 92597 Levallois-Perret Cedex",destinataire:"GMF ASSURANCES\nIndemnisation auto\n148 rue Anatole France\n92597 LEVALLOIS-PERRET CEDEX",mail_assureur:"indemnisation.auto@gmf.fr"},
-  maaf:{assureur_court:"MAAF Assurances",assureur_affiche:"MAAF Assurances",assureur_ligne:"MAAF Assurances SA, Chauray, 79036 Niort Cedex 9",destinataire:"MAAF ASSURANCES SA\nChauray\n79036 NIORT CEDEX 9",mail_assureur:""},
+  maaf:{assureur_court:"MAAF Assurances",assureur_affiche:"MAAF Assurances",assureur_ligne:"MAAF Assurances SA, Chauray, 79036 Niort Cedex 9",destinataire:"MAAF ASSURANCES SA\nChauray\n79036 NIORT CEDEX 9",mail_assureur:"service-client.auto@maaf.fr"},
   europac:{assureur_court:"MAAF Assurances",assureur_affiche:"MAAF Assurances (géré par EUROPAC)",assureur_ligne:"MAAF Assurances SA, Chauray, 79036 Niort Cedex 9",destinataire:"MAAF ASSURANCES SA\nc/o EUROPAC (mandant)\n1 rond-point du Général Eisenhower\n31035 TOULOUSE CEDEX 1\nCode gestionnaire : ",mail_assureur:""},
   bpce:{assureur_court:"BPCE Assurances",assureur_affiche:"BPCE Assurances IARD",assureur_ligne:"BPCE Assurances IARD, TSA 20501, 33881 Villenave d'Ornon",destinataire:"BPCE ASSURANCES IARD\nTSA 20501\n33881 VILLENAVE D'ORNON",mail_assureur:"sinistres@assurances.bpce.fr"},
   pacifica:{assureur_court:"Pacifica",assureur_affiche:"Crédit Agricole Assurances (Pacifica)",assureur_ligne:"PACIFICA (Crédit Agricole Assurances), 8/10 boulevard de Vaugirard, 75724 Paris Cedex 15",destinataire:"PACIFICA – CRÉDIT AGRICOLE ASSURANCES\nc/o (agence du client)\n(adresse de l'agence)\n(code postal et ville)",mail_assureur:"",mail_expert:"BCA.446@bca.fr"},
@@ -2141,7 +2141,7 @@ $("#bPay").onclick=()=>{if(!S.numero)return toast("Attribuez d'abord un n° de f
 /* Annuaire */
 const CONTACTS=[
  {n:"GMF",r:"Assureur · indemnisation auto",tel:"0970809809",telL:"09 70 80 98 09",mail:"indemnisation.auto@gmf.fr",p:"gmf"},
- {n:"MAAF Assurances",r:"Assureur",tel:"3015",telL:"3015",mail:"",p:"maaf"},
+ {n:"MAAF Assurances",r:"Assureur",tel:"3015",telL:"3015",mail:"service-client.auto@maaf.fr",p:"maaf"},
  {n:"EUROPAC",r:"Gestionnaire pour MAAF",tel:"0534512222",telL:"05 34 51 22 22",mail:"",p:"europac"},
  {n:"BPCE Assurances",r:"Assureur · sinistres",tel:"0969364545",telL:"09 69 36 45 45",mail:"sinistres@assurances.bpce.fr",note:"Adresse mail à confirmer",p:"bpce"},
  {n:"Pacifica (Crédit Agricole)",r:"Assureur",tel:"0800810812",telL:"0 800 810 812",mail:"",p:"pacifica"},

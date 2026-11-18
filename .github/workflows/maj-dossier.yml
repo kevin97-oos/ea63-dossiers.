@@ -1,0 +1,23 @@
+name: Mise à jour d'un dossier
+
+on:
+  workflow_dispatch:
+    inputs:
+      numero: {description: "N° de facture du dossier", type: string, required: true}
+      champ: {description: "Champ (mail_assureur, mail_expert, n_sinistre…)", type: string, required: true}
+      valeur: {description: "Nouvelle valeur", type: string, required: true}
+
+jobs:
+  maj:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Mettre à jour
+        env:
+          APP_EMAIL: ${{ secrets.APP_EMAIL }}
+          APP_PASSWORD: ${{ secrets.APP_PASSWORD }}
+          NUMERO: ${{ inputs.numero }}
+          CHAMP: ${{ inputs.champ }}
+          VALEUR: ${{ inputs.valeur }}
+        run: python3 relances/maj.py
