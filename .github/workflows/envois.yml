@@ -1,0 +1,29 @@
+name: Envois assurances (Jeffrey)
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"   # toutes les 5 minutes : envoie les dossiers demandés à Jeffrey
+  workflow_dispatch:
+    inputs:
+      essai:
+        description: "Essai : tout afficher sans rien envoyer"
+        type: boolean
+        default: true
+
+concurrency:
+  group: envois
+  cancel-in-progress: false
+
+jobs:
+  envoyer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Envoyer les dossiers en attente
+        env:
+          APP_EMAIL: ${{ secrets.APP_EMAIL }}
+          APP_PASSWORD: ${{ secrets.APP_PASSWORD }}
+          YAHOO_APP_PASSWORD: ${{ secrets.YAHOO_APP_PASSWORD }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.essai && '1' || '' }}
+        run: python3 relances/envoyer.py

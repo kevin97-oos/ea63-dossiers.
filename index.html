@@ -1544,7 +1544,7 @@ async function jClaude(q){
   return h;}
 function jOuvrir(){$("#jef").classList.remove("hide");
   jAvEtat("salut",1);setTimeout(()=>jAvEtat("salut",0),1700);
-  if(!$("#jMsgs").children.length)jAdd(jSalut()+" chef, je suis Jeffrey 🤵\nDemandez-moi où en est un dossier, qui n'a pas payé, les relances… Je peux aussi faire une facture ou un devis (carrosserie, mécanique ou pare-brise), même avec juste la marque, le modèle et l'année : j'estime les temps et les prix, à vérifier. Avec 📎 vous pouvez me donner un rapport d'expertise, ou une capture d'écran des prix chez AD ou Comptoir Auto : je reprends les vrais prix. Dites par exemple « fais un devis pour M. Dupont, Clio, aile avant gauche 180 euros, 2 heures de tôlerie et 3 heures de peinture ».","j");
+  if(!$("#jMsgs").children.length)jAdd(jSalut()+" chef, je suis Jeffrey 🤵\nDemandez-moi où en est un dossier, qui n'a pas payé, les relances… Je peux aussi faire une facture ou un devis (carrosserie, mécanique ou pare-brise), même avec juste la marque, le modèle et l'année : j'estime les temps et les prix, à vérifier. Je peux aussi envoyer un dossier à l'assurance par mail : « envoie le dossier 52 à l'assurance ». Avec 📎 vous pouvez me donner un rapport d'expertise, ou une capture d'écran des prix chez AD ou Comptoir Auto : je reprends les vrais prix. Dites par exemple « fais un devis pour M. Dupont, Clio, aile avant gauche 180 euros, 2 heures de tôlerie et 3 heures de peinture ».","j");
   $("#jSug").innerHTML=["Faire un devis","Faire une facture","Qui n'a pas payé ?","Relances","Ce mois-ci","Dossiers en cours"].map(t=>`<button type="button">${t}</button>`).join("");
   $$("#jSug button").forEach(b=>b.onclick=()=>{if(/^Faire (un|une) /.test(b.textContent)){const t=b.textContent==="Faire un devis"?"devis":"facture";
       jAdd(`Dites-moi le client, le véhicule et les travaux pour ${t==="devis"?"le devis":"la facture"} : pièces avec leur prix, heures de tôlerie ou de peinture, ou pare-brise avec son tarif et le temps de pose. Dites aussi si je l'ajoute au dossier.`,"j");$("#jIn").value=b.textContent.replace("Faire","Fais")+" ";$("#jIn").focus();return;}
@@ -1561,6 +1561,9 @@ $("#jForm").onsubmit=e=>{e.preventDefault();jDebloque();const q=$("#jIn").value.
       jAdd(r,"j");jDire(r);return;}}
   const parle=jParle;jParle=false;
   const nq=sansAcc(q);
+  if(jEnv){if(/^(oui|ok|okay|vas.y|go|envoie|envoi|d.?accord|c.?est bon|valide|confirme)/.test(nq)){jEnvoiGo();return;}
+    if(/^(non|annule|stop|attends|laisse|pas maintenant)/.test(nq)){jEnvoiAnnule();return;}}
+  if(jDemandeEnvoi(nq)&&!/\bmoi\b/.test(nq)){jEnvoiPrepare(q).catch(err=>{console.warn(err);jAdd("Oups : "+esc(err.message||err),"j");});return;}
   {const pol=jPolitesse(nq);if(pol){jAdd(pol,"j");jParle=parle;jDire(pol);jParle=false;return;}}
   if(!jPend&&jDemandeTel(nq)){jTelechargeDemande(q);return;}
   if(jDocDemande(nq)||jSuite(nq)){jDocTraite(q).catch(err=>{console.warn(err);jAdd("Oups : "+esc(err.message||err),"j");});return;}
@@ -1874,9 +1877,72 @@ async function jLireRapport(f){
   dit+=" Je l'ajoute au dossier, ou pas ? Vous pouvez aussi me dire d'en faire un devis.";jDire(dit);}
 $("#jClip").onclick=()=>{jDebloque();$("#jFile").value="";$("#jFile").click();};
 $("#jFile").onchange=e=>{const f=e.target.files[0];if(!f)return;jAdd("📎 "+esc(f.name),"u");jLireRapport(f);};
+
+/* ====================================================================
+   JEFFREY : ENVOI DU DOSSIER À L'ASSURANCE PAR MAIL (depuis expertauto63@yahoo.com)
+   L'appli prépare le PDF du dossier et le dépose dans l'espace en ligne ;
+   l'envoi part ensuite tout seul (GitHub « Envois assurances », toutes les 5 minutes).
+   Rien ne part sans l'appui sur « Envoyer » (ou un « oui, envoie » à voix haute).
+   ==================================================================== */
+let jEnv=null; // envoi en attente de confirmation
+const jDemandeEnvoi=n=>/(envoie|envoyer|envoi |expedie|transmet|balance|mail.{0,6}dossier)/.test(n)&&!/(quel|adresse|est.il|a.t.il|a.t.on|ou en est)/.test(n)&&/(assur|expert|dossier|gmf|maaf|bpce|pacifica|macif|matmut|axa|allianz|groupama|mma|generali)/.test(n)&&!/(relanc|devis|factur.{0,10}(pour|a faire)|statut|quand|est.ce|a.t.on|deja)/.test(n);
+function jAvec(d,fn,photos){const S0=S,C0=CUR,P0=PHOTOS;S=Object.assign(blankS(),d.S);CUR=d;PHOTOS=photos||[];try{return fn();}finally{S=S0;CUR=C0;PHOTOS=P0;}}
+const jMails=t=>String(t||"").replace(/;/g,",").split(",").map(x=>x.trim()).filter(x=>/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(x));
+
+async function jEnvoiPrepare(q){
+  if(Store.mode!=="cloud"){const r="L'envoi par mail marche seulement quand vous êtes connecté à l'espace en ligne.";jAdd(r,"j");jDire(r);return;}
+  const R=jTrouver(q);
+  if(R.length!==1){const r=R.length?`J'ai trouvé ${R.length} dossiers : dites-moi le numéro de celui à envoyer.`:"Quel dossier dois-je envoyer ? Donnez-moi le numéro, le nom du client ou la plaque.";jAdd(r,"j");jDire(r);return;}
+  const d=await DB.get(R[0].id)||R[0],S1=Object.assign(blankS(),d.S);
+  const to=jMails(S1.mail_assureur).length?jMails(S1.mail_assureur):jMails(mailConnu(S1)),cc=jMails(S1.mail_expert).filter(x=>!to.includes(x));
+  if(!to.length&&!cc.length){const r=`Le dossier ${S1.numero?"n° "+S1.numero:""} de ${S1.client_nom||"ce client"} n'a pas d'adresse mail d'assurance. Ajoutez-la dans l'onglet Envoi, puis redemandez-moi.`;jAdd(esc(r),"j");jDire(r);return;}
+  let photos=[];try{photos=await DB.photos(d.id);}catch(e){}
+  const manq=jAvec(d,()=>manque(),photos);
+  if(manq.length){const r=`Je ne peux pas encore envoyer ce dossier, il manque : ${manq.join(", ")}.`;jAdd(esc(r),"j");jDire(r);return;}
+  const m=jAvec(d,()=>mailTexte(),photos);
+  const deja=d.envoi&&d.envoi.at?`\n⚠️ Ce dossier a déjà été envoyé le ${fr(d.envoi.at.slice(0,10))}.`:"";
+  const sig=d.signature&&d.signature.statut==="signee"?"":"\n⚠️ La cession de créance n'est pas signée en ligne : vérifiez que la version signée est bien jointe.";
+  jEnv={d,photos,to:to.length?to:cc,cc:to.length?cc:[],objet:m.objet,corps:m.corps};
+  const e=document.createElement("div");e.className="jm j";
+  e.innerHTML=`<b>Envoi du dossier ${esc(S1.numero?"n° "+S1.numero:"")} — ${esc(S1.client_nom||"")}</b>
+À : <b>${esc(jEnv.to.join(", "))}</b>${jEnv.cc.length?"\nCopie : "+esc(jEnv.cc.join(", ")):""}
+Copie à vous : expertauto63@yahoo.com
+Objet : ${esc(m.objet)}
+Pièce jointe : le dossier complet en un seul PDF (${eur(jAvec(d,()=>calc().ttc))} TTC).${deja}${sig}
+<details style="margin-top:6px"><summary style="font-weight:700">Voir le texte du mail</summary><div style="font-size:13px;margin-top:6px">${esc(m.corps)}</div></details><div class="jdocb"><button type="button" data-je="go">✉️ Envoyer à l'assurance</button><button type="button" data-je="non" style="background:#fff;color:#000!important;border:1px solid #dcdedb">Annuler</button></div>`;
+  $("#jMsgs").appendChild(e);$("#jMsgs").scrollTop=1e9;
+  e.querySelectorAll("[data-je]").forEach(b=>b.onclick=()=>{e.querySelectorAll("[data-je]").forEach(x=>x.disabled=true);jAdd(esc(b.textContent.replace(/^\S+\s/,"")),"u");b.dataset.je==="go"?jEnvoiGo():jEnvoiAnnule();});
+  jDire(`Je suis prêt à envoyer le dossier de ${S1.client_nom||"ce client"} à ${jEnv.to[0]}. Je l'envoie ?`);}
+function jEnvoiAnnule(){jEnv=null;const r="D'accord, je n'envoie rien.";jAdd(r,"j");jDire(r);}
+function jB64(blob){return new Promise((ok,ko)=>{const f=new FileReader();f.onload=()=>ok(String(f.result).split(",")[1]||"");f.onerror=ko;f.readAsDataURL(blob);});}
+async function jEnvoiGo(){const E=jEnv;jEnv=null;if(!E)return jAdd("Il n'y a pas d'envoi en attente.","j");
+  const d=E.d,S1=d.S,nom=(S1.client_nom||"client").split(" ").pop().toUpperCase().replace(/[^A-Z0-9]/g,"");
+  const fname=`DOSSIER_${S1.numero||"X"}_${nom}_${(S1.immat||"").replace(/[^A-Z0-9]/gi,"")}.pdf`;
+  const att=document.createElement("div");att.className="jm j";att.textContent="Je prépare le PDF du dossier…";$("#jMsgs").appendChild(att);$("#jMsgs").scrollTop=1e9;jAvEtat("pense",1);
+  try{
+    const html=jAvec(d,()=>docsHTML(),E.photos);
+    const r=await jPdfHtml(html,fname);const b64=await jB64(r.blob);
+    const T=800000,parts=[];for(let i=0;i<b64.length;i+=T)parts.push(b64.slice(i,i+T));
+    if(parts.length>25)throw new Error("PDF trop lourd ("+Math.round(r.blob.size/1e6)+" Mo)");
+    att.textContent="Je dépose le dossier pour l'envoi…";
+    const id=Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+    for(let i=0;i<parts.length;i++)await DB.setMeta(`mailpart_${id}_${i}`,parts[i]);
+    await DB.setMeta("mail_"+id,{statut:"attente",dossier:d.id,numero:String(S1.numero||""),client:S1.client_nom||"",to:E.to.join(", "),cc:E.cc.join(", "),
+      objet:E.objet,corps:E.corps,fichier:fname,parts:parts.length,demande:nowIso(),par:ME||"cet appareil"});
+    const d2=await DB.get(d.id)||d;d2.historique=d2.historique||[];d2.historique.push({at:nowIso(),by:ME||"cet appareil",txt:"Envoi du dossier à l'assurance demandé à Jeffrey ("+E.to.join(", ")+")"});
+    d2.updatedAt=nowIso();d2.updatedBy=ME||"cet appareil";await DB.save(d2);
+    att.remove();jAvEtat("pense",0);
+    const rr=`C'est parti : le mail avec le dossier de ${S1.client_nom||"ce client"} part dans les prochaines minutes depuis expertauto63@yahoo.com, avec une copie pour vous. Le dossier passera tout seul en « Envoyé ».`;
+    jAdd(esc(rr),"j");jDire(rr);jSuivi("mail_"+id);
+  }catch(e){att.remove();jAvEtat("pense",0);const rr="L'envoi n'a pas pu être préparé : "+(e.message||e)+". Rien n'est parti.";jAdd(esc(rr),"j");jDire(rr);}}
+/* Prévient quand le mail est vraiment parti (tant que l'appli reste ouverte) */
+function jSuivi(k,n=0){if(n>40)return;setTimeout(async()=>{let m=null;try{m=await DB.meta(k);}catch(e){}
+  const v=m&&m.v;if(!v||v.statut==="attente")return jSuivi(k,n+1);
+  const r=v.statut==="envoye"?`✅ Le dossier ${v.numero?"n° "+v.numero:""} de ${v.client} est bien parti à ${v.to}.`:`⚠️ L'envoi du dossier ${v.numero?"n° "+v.numero:""} a échoué : ${v.erreur||"erreur inconnue"}. Rien n'est parti, réessayez ou envoyez-le depuis l'onglet Envoi.`;
+  jAdd(esc(r),"j");if(!$("#jef").classList.contains("hide"))jDire(r);else toast(r);},30000);}
 /* Effacer la conversation */
 function jEffacer(){if(!confirm("Effacer tous les messages de la conversation avec Jeffrey ?"))return;
-  $("#jMsgs").innerHTML="";jHisto=[];jPend=null;if(window.speechSynthesis)speechSynthesis.cancel();
+  $("#jMsgs").innerHTML="";jHisto=[];jPend=null;jEnv=null;if(window.speechSynthesis)speechSynthesis.cancel();
   jAdd("Conversation effacée. Je vous écoute 🤵","j");}
 $("#jClr").onclick=jEffacer;
 
