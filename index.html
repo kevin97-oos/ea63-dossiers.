@@ -1544,9 +1544,10 @@ async function jClaude(q){
   return h;}
 function jOuvrir(){$("#jef").classList.remove("hide");
   jAvEtat("salut",1);setTimeout(()=>jAvEtat("salut",0),1700);
-  if(!$("#jMsgs").children.length)jAdd(jSalut()+" chef, je suis Jeffrey 🤵\nDemandez-moi où en est un dossier, qui n'a pas payé, les relances… Je peux aussi faire une facture ou un devis (carrosserie, mécanique ou pare-brise), même avec juste la marque, le modèle et l'année : j'estime les temps et les prix, à vérifier. Je peux aussi envoyer un dossier à l'assurance par mail : « envoie le dossier 52 à l'assurance ». Avec 📎 vous pouvez me donner un rapport d'expertise, ou une capture d'écran des prix chez AD ou Comptoir Auto : je reprends les vrais prix. Dites par exemple « fais un devis pour M. Dupont, Clio, aile avant gauche 180 euros, 2 heures de tôlerie et 3 heures de peinture ».","j");
-  $("#jSug").innerHTML=["Faire un devis","Faire une facture","Qui n'a pas payé ?","Relances","Ce mois-ci","Dossiers en cours"].map(t=>`<button type="button">${t}</button>`).join("");
-  $$("#jSug button").forEach(b=>b.onclick=()=>{if(/^Faire (un|une) /.test(b.textContent)){const t=b.textContent==="Faire un devis"?"devis":"facture";
+  if(!$("#jMsgs").children.length)jAdd(jSalut()+" chef, je suis Jeffrey 🤵\nDemandez-moi où en est un dossier, qui n'a pas payé, les relances… Je peux aussi faire une facture ou un devis (carrosserie, mécanique ou pare-brise), même avec juste la marque, le modèle et l'année : j'estime les temps et les prix, à vérifier. Je rédige aussi vos mails pour n'importe quel organisme : donnez-moi l'adresse et quelques mots. Et je peux envoyer un dossier à l'assurance par mail : « envoie le dossier 52 à l'assurance ». Avec 📎 vous pouvez me donner un rapport d'expertise, ou une capture d'écran des prix chez AD ou Comptoir Auto : je reprends les vrais prix. Dites par exemple « fais un devis pour M. Dupont, Clio, aile avant gauche 180 euros, 2 heures de tôlerie et 3 heures de peinture ».","j");
+  $("#jSug").innerHTML=["Faire un devis","Faire une facture","Écrire un mail","Qui n'a pas payé ?","Relances","Ce mois-ci","Dossiers en cours"].map(t=>`<button type="button">${t}</button>`).join("");
+  $$("#jSug button").forEach(b=>b.onclick=()=>{if(b.textContent==="Écrire un mail"){jAdd("À qui ? Donnez-moi l'adresse mail et quelques mots sur ce que vous voulez dire. Exemple : « mail à contact@urssaf.fr, je veux une attestation de vigilance pour un appel d'offres ».","j");$("#jIn").value="Écris un mail à ";$("#jIn").focus();return;}
+    if(/^Faire (un|une) /.test(b.textContent)){const t=b.textContent==="Faire un devis"?"devis":"facture";
       jAdd(`Dites-moi le client, le véhicule et les travaux pour ${t==="devis"?"le devis":"la facture"} : pièces avec leur prix, heures de tôlerie ou de peinture, ou pare-brise avec son tarif et le temps de pose. Dites aussi si je l'ajoute au dossier.`,"j");$("#jIn").value=b.textContent.replace("Faire","Fais")+" ";$("#jIn").focus();return;}
     $("#jIn").value=b.textContent;$("#jForm").requestSubmit();});}
 $("#jefB").onclick=()=>{jDebloque();jSonUI();jOuvrir();};
@@ -1563,6 +1564,7 @@ $("#jForm").onsubmit=e=>{e.preventDefault();jDebloque();const q=$("#jIn").value.
   const nq=sansAcc(q);
   if(jEnv){if(/^(oui|ok|okay|vas.y|go|envoie|envoi|d.?accord|c.?est bon|valide|confirme)/.test(nq)){jEnvoiGo();return;}
     if(/^(non|annule|stop|attends|laisse|pas maintenant)/.test(nq)){jEnvoiAnnule();return;}}
+  if(!(jDemandeEnvoi(nq)&&/dossier/.test(nq))&&(jDemandeMail(q,nq)||jSuiteMail(nq))){jPend=null;jMailTraite(q).catch(err=>{console.warn(err);jAdd("Oups : "+esc(err.message||err),"j");});return;}
   if(jDemandeEnvoi(nq)&&!/\bmoi\b/.test(nq)){jEnvoiPrepare(q).catch(err=>{console.warn(err);jAdd("Oups : "+esc(err.message||err),"j");});return;}
   {const pol=jPolitesse(nq);if(pol){jAdd(pol,"j");jParle=parle;jDire(pol);jParle=false;return;}}
   if(!jPend&&jDemandeTel(nq)){jTelechargeDemande(q);return;}
@@ -1823,7 +1825,7 @@ async function jDocTraite(q){const n=sansAcc(q);
   let o;try{o=await jDocIA(q);}catch(e){att.remove();jAvEtat("pense",0);jAvSay("");const r="Je n'arrive pas à joindre l'IA en ce moment ("+String(e.message||e).slice(0,80)+"). Réessayez dans un instant.";jAdd(esc(r),"j");jDire(r);return;}
   att.remove();jAvEtat("pense",0);jAvSay("");
   const rapAvant=jPend&&jPend.rap?{rap:jPend.rap,extra:jPend.extra}:null;
-  jPend=jDocPropre(o);if(rapAvant){jPend.rap=rapAvant.rap;jPend.extra=rapAvant.extra;}
+  jMail=null;jPend=jDocPropre(o);if(rapAvant){jPend.rap=rapAvant.rap;jPend.extra=rapAvant.extra;}
   if(jPend.dossier&&!jCible(jPend)&&jPend.ajouter===true){const R=jTrouver(jPend.dossier);if(R.length>1)jAdd(`J'ai trouvé ${R.length} dossiers pour « ${esc(jPend.dossier)} » : dites-moi le numéro.`,"j");}
   else if(!jPend.dossier&&jPend.client.nom){const R=jTrouver(jPend.client.nom);if(R.length===1)jPend.dossier=R[0].S.numero||R[0].S.client_nom;}
   jAddDoc();
@@ -1938,11 +1940,96 @@ async function jEnvoiGo(){const E=jEnv;jEnv=null;if(!E)return jAdd("Il n'y a pas
 /* Prévient quand le mail est vraiment parti (tant que l'appli reste ouverte) */
 function jSuivi(k,n=0){if(n>40)return;setTimeout(async()=>{let m=null;try{m=await DB.meta(k);}catch(e){}
   const v=m&&m.v;if(!v||v.statut==="attente")return jSuivi(k,n+1);
+  if(!v.dossier){const r=v.statut==="envoye"?`✅ Votre mail « ${v.objet} » est bien parti à ${v.to}.`:`⚠️ Le mail pour ${v.to} n'est pas parti : ${v.erreur||"erreur inconnue"}.`;jAdd(esc(r),"j");if(!$("#jef").classList.contains("hide"))jDire(r);else toast(r);return;}
   const r=v.statut==="envoye"?`✅ Le dossier ${v.numero?"n° "+v.numero:""} de ${v.client} est bien parti à ${v.to}.`:`⚠️ L'envoi du dossier ${v.numero?"n° "+v.numero:""} a échoué : ${v.erreur||"erreur inconnue"}. Rien n'est parti, réessayez ou envoyez-le depuis l'onglet Envoi.`;
   jAdd(esc(r),"j");if(!$("#jef").classList.contains("hide"))jDire(r);else toast(r);},30000);}
+
+/* ====================================================================
+   JEFFREY : RÉDACTION DE MAILS POUR N'IMPORTE QUEL ORGANISME
+   Avec une adresse et quelques mots, Jeffrey rédige un mail complet,
+   sans faute, au bon ton. On peut le corriger, le copier, l'ouvrir
+   dans Mail, ou l'envoyer depuis expertauto63@yahoo.com (après accord).
+   ==================================================================== */
+const JEFFREY_MAIL_CONSIGNE = `Tu es Jeffrey, l'assistant du garage EXPERT AUTO 63. Tu rédiges des mails professionnels au nom du gérant, Sofiane Tahidousti, à partir de quelques mots dictés (souvent à la voix, avec des fautes ou sans ponctuation). Tu réponds UNIQUEMENT avec un objet JSON valide.
+
+EXIGENCES DE QUALITÉ (très important) :
+- Français impeccable : orthographe, grammaire, accords, conjugaison, ponctuation et typographie françaises parfaites (espace avant « : ; ? ! », guillemets « », majuscules accentuées : À, É).
+- Comprends l'intention même si la dictée est approximative ; corrige les fautes du gérant sans changer le sens ; n'invente aucun fait, montant, date, numéro ou nom qui n'a pas été donné.
+- Adapte le ton au destinataire, que tu devines d'après l'adresse mail et la demande : assurance, expert, administration (impôts, URSSAF, préfecture, ANTS, mairie, CARSAT, Pôle emploi / France Travail), banque, fournisseur, client particulier, avocat, huissier, bailleur, école, etc. Ton courtois et professionnel par défaut ; ferme mais poli pour une réclamation ou une relance ; chaleureux pour un client.
+- Structure : formule d'appel adaptée (« Madame, Monsieur, » si l'interlocuteur est inconnu, « Bonjour Monsieur X, » si un nom est donné), une phrase qui donne l'objet du mail, le développement en paragraphes courts et clairs, une demande ou action attendue précise si nécessaire, une formule de politesse adaptée (« Je vous prie d'agréer, Madame, Monsieur, l'expression de mes salutations distinguées. » pour une administration ou un courrier formel ; « Cordialement, » ou « Bien cordialement, » pour un échange courant).
+- Rappelle les références utiles fournies (n° de dossier, de sinistre, de contrat, de facture, immatriculation…). Si une information indispensable manque (ex. numéro de dossier pour une administration), écris le mail quand même et signale le manque dans "remarque".
+- Objet du mail : court, précis et informatif (ex. « Demande d'attestation de vigilance – EXPERT AUTO 63 »).
+- Longueur : juste ce qu'il faut, sans remplissage.
+- Signature, toujours à la fin du corps :
+Sofiane Tahidousti
+Gérant – EXPERT AUTO 63
+1 rue Pierre et Marie Curie, 63200 Riom
+Tél. 06 26 52 33 62 – expertauto63@yahoo.com
+- Si on te fournit un mail en cours ("en_cours") et une demande de modification (plus court, plus ferme, ajoute…, enlève…, change le destinataire…), renvoie le mail complet modifié.
+- Si les données d'un dossier de l'appli sont fournies et que la demande en parle, utilise-les (client, véhicule, plaque, assureur, n° de sinistre, montant…).
+
+FORMAT DE RÉPONSE :
+{"a":"adresse(s) mail du destinataire, séparées par des virgules (celles données par le gérant)","cc":"","objet":"…","corps":"texte complet du mail avec la signature","remarque":"vide, ou une phrase courte si une information manque","phrase":"une phrase courte et polie à lire à voix haute (ex. Voici le mail pour l'URSSAF, je l'envoie ?)"}`;
+
+let jMail=null;
+const RE_MAIL=/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i;
+const jDemandeMail=(q,n)=>(/(redig|ecri|fai|prepare|envoie|envoyer|repond|reponse).{0,25}(mail|e-mail|email|courriel|message|lettre|courrier)/.test(n)||(RE_MAIL.test(q)&&!/(dossier\s*\d|factur|devis)/.test(n)))&&!/(relanc.*auto)/.test(n);
+const jSuiteMail=n=>jMail&&/(plus (court|long|ferme|poli|gentil|simple|formel|direct|sec|chaleureux|professionnel)|raccourci|allonge|ajoute|enleve|retire|change|modifi|remplace|corrige|reformule|refai|tutoie|vouvoie|en anglais|ton|objet|destinataire|precise|mets|met )/.test(n);
+async function jMailIA(q){
+  const R=jTrouver(q).slice(0,2);
+  const ctx={aujourdhui:new Date().toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long",year:"numeric"}),
+    en_cours:jMail?{a:jMail.a,cc:jMail.cc,objet:jMail.objet,corps:jMail.corps}:null,
+    dossiers:R.length&&R.length<=2?R.map(d=>{const S1=d.S;return{numero:S1.numero,client:((S1.client_civ||"")+" "+(S1.client_nom||"")).trim(),vehicule:titre(((S1.marque||"")+" "+(S1.modele||"")).trim()),immat:S1.immat,assureur:S1.assureur_court,sinistre:S1.n_sinistre,contrat:S1.n_contrat,expertise:S1.exp_num,facture_ttc:ttcOf(d),date_facture:S1.date,statut:d.statut};}):[]};
+  const contents=[{role:"user",parts:[{text:"Contexte (JSON) :\n"+JSON.stringify(ctx)+"\n\nDemande du gérant : "+q}]}];
+  const h={"Content-Type":"application/json","x-goog-api-key":FIREBASE_CONFIG.apiKey,"X-Firebase-Appid":FIREBASE_CONFIG.appId};
+  try{if(Cloud.auth&&Cloud.auth.currentUser)h.Authorization="Firebase "+await Cloud.auth.currentUser.getIdToken();}catch(e){}
+  // pour les textes, on préfère le modèle le plus soigné
+  const ordre=["gemini-2.5-flash"].concat(JEFFREY_MODELES.filter(m=>m!=="gemini-2.5-flash"));let derr="";
+  for(const m of ordre){
+    const ctl=new AbortController(),to=setTimeout(()=>ctl.abort(),30000);
+    let r;try{r=await fetch(`https://firebasevertexai.googleapis.com/v1beta/projects/${FIREBASE_CONFIG.projectId}/models/${m}:generateContent`,{method:"POST",headers:h,signal:ctl.signal,
+      body:JSON.stringify({systemInstruction:{parts:[{text:JEFFREY_MAIL_CONSIGNE}]},contents,generationConfig:{maxOutputTokens:2000,temperature:0.3,responseMimeType:"application/json",thinkingConfig:{thinkingBudget:m==="gemini-2.5-flash"?512:0}}})});}
+    catch(e){clearTimeout(to);derr="trop long";continue;}
+    clearTimeout(to);const d=await r.json().catch(()=>({}));
+    if(r.ok){const t=((d.candidates||[])[0]||{}).content;let txt=t?(t.parts||[]).filter(p=>!p.thought).map(p=>p.text||"").join("").trim():"";
+      txt=txt.replace(/^```(json)?/i,"").replace(/```$/,"").trim();try{return JSON.parse(txt);}catch(e){derr="réponse illisible";continue;}}
+    derr=(d.error&&d.error.message)||("erreur "+r.status);if(r.status!==404&&r.status!==400)break;}
+  throw new Error(derr);}
+
+function jMailCarte(){const M=jMail,e=document.createElement("div");e.className="jm j";
+  e.innerHTML=`<b>✉️ Mail prêt</b>${M.remarque?`\n⚠️ ${esc(M.remarque)}`:""}
+<label style="font-size:12px;color:#555;display:block;margin-top:6px">À</label><input class="jma" value="${esc(M.a)}" inputmode="email" style="width:100%;border:1px solid #dcdedb;border-radius:10px;padding:8px;font-size:15px;color:#000;background:#fff">
+<label style="font-size:12px;color:#555;display:block;margin-top:6px">Objet</label><input class="jmo" value="${esc(M.objet)}" style="width:100%;border:1px solid #dcdedb;border-radius:10px;padding:8px;font-size:15px;color:#000;background:#fff">
+<label style="font-size:12px;color:#555;display:block;margin-top:6px">Texte (vous pouvez le modifier)</label><textarea class="jmc" rows="12" style="width:100%;border:1px solid #dcdedb;border-radius:10px;padding:8px;font-size:14.5px;line-height:1.45;color:#000;background:#fff;font-family:inherit">${esc(M.corps)}</textarea>
+<div class="jdocb"><button type="button" data-jm="env">✉️ Envoyer depuis expertauto63@yahoo.com</button><a class="jmto" href="#" style="background:#fff;color:#000!important;border:1px solid #dcdedb">📱 Ouvrir dans Mail</a><button type="button" data-jm="cp" style="background:#fff;color:#000!important;border:1px solid #dcdedb">📋 Copier le texte</button></div>`;
+  $("#jMsgs").appendChild(e);$("#jMsgs").scrollTop=1e9;
+  const lire=()=>{M.a=e.querySelector(".jma").value.trim();M.objet=e.querySelector(".jmo").value.trim();M.corps=e.querySelector(".jmc").value;};
+  ["jma","jmo","jmc"].forEach(c=>e.querySelector("."+c).addEventListener("input",()=>{lire();maj();}));
+  const maj=()=>{e.querySelector(".jmto").href=`mailto:${encodeURIComponent(M.a).replace(/%40/g,"@").replace(/%2C/g,",")}?subject=${encodeURIComponent(M.objet)}&body=${encodeURIComponent(M.corps)}`;};maj();
+  e.querySelector("[data-jm=cp]").onclick=()=>{lire();copier(M.objet+"\n\n"+M.corps);};
+  e.querySelector("[data-jm=env]").onclick=()=>{lire();jMailEnvoi(M);};}
+
+async function jMailEnvoi(M){
+  const to=jMails(M.a),cc=jMails(M.cc);
+  if(!to.length){const r="Il me faut une adresse mail valide dans la case « À ».";jAdd(r,"j");jDire(r);return;}
+  if(Store.mode!=="cloud"){const r="L'envoi marche seulement connecté à l'espace en ligne. Utilisez « Ouvrir dans Mail ».";jAdd(r,"j");jDire(r);return;}
+  if(!confirm(`Envoyer ce mail depuis expertauto63@yahoo.com ?\n\nÀ : ${to.join(", ")}\nObjet : ${M.objet}`))return;
+  try{const id=Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+    await DB.setMeta("mail_"+id,{statut:"attente",dossier:"",numero:"",client:to.join(", "),to:to.join(", "),cc:cc.join(", "),objet:M.objet,corps:M.corps,fichier:"",parts:0,demande:nowIso(),par:ME||"cet appareil"});
+    jMail=null;const r=`C'est parti : le mail pour ${to[0]} part dans les prochaines minutes, avec une copie pour vous.`;jAdd(esc(r),"j");jDire(r);jSuivi("mail_"+id);}
+  catch(e){const r="Le mail n'a pas pu être préparé : "+(e.code||e.message||e)+". Rien n'est parti.";jAdd(esc(r),"j");jDire(r);}}
+
+async function jMailTraite(q){
+  jAvEtat("pense",1);jAvSay("Je rédige…");const att=document.createElement("div");att.className="jm j";att.textContent="Je rédige le mail…";$("#jMsgs").appendChild(att);$("#jMsgs").scrollTop=1e9;
+  let o;try{o=await jMailIA(q);}catch(e){att.remove();jAvEtat("pense",0);jAvSay("");const r="Je n'arrive pas à joindre l'IA en ce moment ("+String(e.message||e).slice(0,80)+"). Réessayez dans un instant.";jAdd(esc(r),"j");jDire(r);return;}
+  att.remove();jAvEtat("pense",0);jAvSay("");
+  const a=String(o.a||"").trim()||((q.match(new RegExp(RE_MAIL.source,"gi"))||[]).join(", "))||(jMail&&jMail.a)||"";
+  jMail={a,cc:String(o.cc||"").trim(),objet:String(o.objet||"").trim(),corps:String(o.corps||"").replace(/\r/g,"").trim(),remarque:String(o.remarque||"").trim()};
+  jMailCarte();
+  jDire((o.phrase||"Voici le mail.")+(jMail.a?"":" Il me manque l'adresse mail du destinataire."));}
 /* Effacer la conversation */
 function jEffacer(){if(!confirm("Effacer tous les messages de la conversation avec Jeffrey ?"))return;
-  $("#jMsgs").innerHTML="";jHisto=[];jPend=null;jEnv=null;if(window.speechSynthesis)speechSynthesis.cancel();
+  $("#jMsgs").innerHTML="";jHisto=[];jPend=null;jEnv=null;jMail=null;if(window.speechSynthesis)speechSynthesis.cancel();
   jAdd("Conversation effacée. Je vous écoute 🤵","j");}
 $("#jClr").onclick=jEffacer;
 
