@@ -930,7 +930,7 @@ input,select,textarea{border-radius:12px;border-color:var(--line)}
     <div id="jMsgs"></div>
     <div id="jSug"></div>
     <div id="jVoix"><button type="button" id="jMic">🎤</button><div id="jEtat">Appuyez sur le micro et parlez</div></div>
-    <form id="jForm"><button type="button" id="jClip" aria-label="Joindre un rapport d'expertise" title="Joindre un rapport d'expertise (PDF ou photo)" style="background:#fff;color:#000;border:1px solid #dcdedb;padding:0 13px;font-size:19px">📎</button><input type="file" id="jFile" accept="application/pdf,image/*" class="hide"><input id="jIn" placeholder="Ou écrivez ici…" autocomplete="off" enterkeyhint="send"><button>Envoyer</button></form>
+    <form id="jForm"><button type="button" id="jClip" aria-label="Joindre un document" title="Joindre un rapport d'expertise, un devis ou une capture d'écran fournisseur (PDF ou photo)" style="background:#fff;color:#000;border:1px solid #dcdedb;padding:0 13px;font-size:19px">📎</button><input type="file" id="jFile" accept="application/pdf,image/*" class="hide"><input id="jIn" placeholder="Ou écrivez ici…" autocomplete="off" enterkeyhint="send"><button>Envoyer</button></form>
   </div>
 </div>
 <script>
@@ -1544,7 +1544,7 @@ async function jClaude(q){
   return h;}
 function jOuvrir(){$("#jef").classList.remove("hide");
   jAvEtat("salut",1);setTimeout(()=>jAvEtat("salut",0),1700);
-  if(!$("#jMsgs").children.length)jAdd(jSalut()+" chef, je suis Jeffrey 🤵\nDemandez-moi où en est un dossier, qui n'a pas payé, les relances… Je peux aussi faire une facture ou un devis (carrosserie, mécanique ou pare-brise), même avec juste la marque, le modèle et l'année : j'estime les temps et les prix, à vérifier. Avec 📎 vous pouvez me donner un rapport d'expertise. Dites par exemple « fais un devis pour M. Dupont, Clio, aile avant gauche 180 euros, 2 heures de tôlerie et 3 heures de peinture ».","j");
+  if(!$("#jMsgs").children.length)jAdd(jSalut()+" chef, je suis Jeffrey 🤵\nDemandez-moi où en est un dossier, qui n'a pas payé, les relances… Je peux aussi faire une facture ou un devis (carrosserie, mécanique ou pare-brise), même avec juste la marque, le modèle et l'année : j'estime les temps et les prix, à vérifier. Avec 📎 vous pouvez me donner un rapport d'expertise, ou une capture d'écran des prix chez AD ou Comptoir Auto : je reprends les vrais prix. Dites par exemple « fais un devis pour M. Dupont, Clio, aile avant gauche 180 euros, 2 heures de tôlerie et 3 heures de peinture ».","j");
   $("#jSug").innerHTML=["Faire un devis","Faire une facture","Qui n'a pas payé ?","Relances","Ce mois-ci","Dossiers en cours"].map(t=>`<button type="button">${t}</button>`).join("");
   $$("#jSug button").forEach(b=>b.onclick=()=>{if(/^Faire (un|une) /.test(b.textContent)){const t=b.textContent==="Faire un devis"?"devis":"facture";
       jAdd(`Dites-moi le client, le véhicule et les travaux pour ${t==="devis"?"le devis":"la facture"} : pièces avec leur prix, heures de tôlerie ou de peinture, ou pare-brise avec son tarif et le temps de pose. Dites aussi si je l'ajoute au dossier.`,"j");$("#jIn").value=b.textContent.replace("Faire","Fais")+" ";$("#jIn").focus();return;}
@@ -1631,6 +1631,12 @@ Roues : pneu 15 pouces 70 €, 16 pouces 85 €, 17 pouces 110 €, 18 pouces 14
 Carrosserie (pièce nue, avant peinture) : aile avant 120 € ; capot 280 € ; pare-chocs avant 220 € ; pare-chocs arrière 200 € ; porte nue 350 € ; hayon 450 € ; rétroviseur complet 150 € ; coque de rétroviseur 35 € ; glace de rétroviseur 30 € ; optique avant halogène 180 € (LED / xénon 550 €) ; feu arrière 90 € ; antibrouillard 45 € ; calandre 90 € ; grille de pare-chocs 35 € ; absorbeur 60 € ; renfort de pare-chocs 90 € ; bas de caisse 150 € ; radiateur 160 € ; condenseur 150 € ; agrafes et visserie 15 €.
 TEMPS DE MAIN-D'ŒUVRE DE RÉFÉRENCE (compacte, à adapter au véhicule) : vidange + filtre 0,5 h ; filtres air / habitacle 0,3 h ; bougies 0,5 h ; plaquettes avant 0,8 h ; disques + plaquettes avant 1,2 h ; disques + plaquettes arrière 1,3 h ; kit tambours arrière 1,5 h ; purge de frein 0,5 h ; amortisseurs avant (paire) 2 h ; amortisseurs arrière (paire) 1 h ; triangle 1 h ; rotule 0,6 h ; roulement de roue 1,2 h ; cardan 1,5 h ; kit distribution 3,5 h (2,5 à 5 h selon moteur) ; pompe à eau seule 2 h ; courroie d'accessoires 0,8 h ; embrayage 5 h (4 à 7 h) ; joint de culasse 8 h ; turbo 3 h ; injecteur diesel 1 h pièce ; vanne EGR 1,5 h ; alternateur 1,5 h ; démarreur 1,5 h ; batterie 0,3 h (0,8 h si codage) ; radiateur 1,5 h ; thermostat 1 h ; silencieux arrière 0,6 h ; FAP 2 h ; compresseur de clim 2,5 h ; pneus 0,2 h pièce (montage + équilibrage) ; géométrie : forfait. Carrosserie : dépose / repose pare-chocs 1 h ; remplacement aile avant 1,5 h ; remplacement capot 0,8 h ; remplacement porte 2,5 h ; peinture d'un élément 2 à 3 h + ingrédients ; raccord peinture 1,5 h.
 Ces prix et temps sont des références : la ligne reste marquée "estime":true et le gérant valide.
+FOURNISSEURS DU GARAGE : pièces mécaniques et carrosserie chez AD (Autodistribution, catalogue Autossimo) et chez Comptoir Auto à Clermont-Ferrand ; pare-brise chez VSF.
+Quand le gérant donne un prix lu chez un fournisseur, ou t'envoie le texte d'un devis / panier / capture d'écran fournisseur :
+- prends le PRIX PUBLIC (prix de vente conseillé, « prix public », « PV TTC » converti en HT, « tarif constructeur ») comme prix unitaire HT de la facture, jamais le « prix net », « votre prix », « prix remisé » ou « prix d'achat » (c'est ce que paie le garage) ;
+- si seul le prix net garage est indiqué, ajoute la marge habituelle : prix net × 1,40, arrondi, et mets "estime":true ;
+- reprends la référence de la pièce dans "ref" et la marque de la pièce dans la désignation si elle est utile (ex. « Kit de distribution Gates ») ;
+- ces lignes sont des prix réels : "estime":false.
 
 
 DOSSIER : "ajouter" vaut true si le gérant dit de l'ajouter / mettre / enregistrer au dossier (du client), false s'il dit de ne pas l'ajouter, null s'il ne dit rien. "dossier" = numéro de facture, nom du client ou plaque qu'il cite pour le dossier (sinon null). Utilise la liste des dossiers fournie pour reconnaître le client.
@@ -1829,7 +1835,7 @@ async function jDocTraite(q){const n=sansAcc(q);
 
 /* Rapport d'expertise donné à Jeffrey (PDF ou photo) : il en tire la facture, au centime près */
 async function jLireRapport(f){
-  const att=document.createElement("div");att.className="jm j";att.textContent="Je lis le rapport d'expertise…";$("#jMsgs").appendChild(att);$("#jMsgs").scrollTop=1e9;jAvEtat("pense",1);
+  const att=document.createElement("div");att.className="jm j";att.textContent="Je lis le document…";$("#jMsgs").appendChild(att);$("#jMsgs").scrollTop=1e9;jAvEtat("pense",1);
   let txt="";
   try{
     if(f.type==="application/pdf"){
@@ -1841,7 +1847,7 @@ async function jLireRapport(f){
       await loadScript("https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js");
       const img=await fileToImg(f);const c=document.createElement("canvas");const k=Math.min(1,2000/Math.max(img.naturalWidth,img.naturalHeight));c.width=img.naturalWidth*k;c.height=img.naturalHeight*k;
       const x=c.getContext("2d");x.filter="grayscale(1) contrast(1.35)";x.drawImage(img,0,0,c.width,c.height);
-      att.textContent="Je lis la photo du rapport… (quelques secondes)";
+      att.textContent="Je lis la photo… (quelques secondes)";
       const r=await Tesseract.recognize(c,"fra");txt=r.data.text||"";}
   }catch(e){att.remove();jAvEtat("pense",0);const r="Je n'ai pas réussi à lire ce fichier ("+(e.message||e)+").";jAdd(esc(r),"j");jDire(r);return;}
   att.remove();jAvEtat("pense",0);
@@ -1849,8 +1855,8 @@ async function jLireRapport(f){
   let x;try{x=parseRap2(txt);}catch(e){x={o:{},R:null};}
   const o=x.o||{},R=x.R;
   if(!R||!(R.postes.length||R.pieces.length)){
-    const r="J'ai lu le document mais je n'y trouve pas le chiffrage de l'expert. Je le transmets à l'IA pour préparer la facture.";jAdd(r,"j");jDire(r);
-    return jDocTraite("Fais la facture d'après ce rapport d'expertise (texte lu) :\n"+txt.slice(0,9000));}
+    const r="J'ai lu le document. Je prépare la facture avec les pièces et les prix qui y figurent.";jAdd(r,"j");jDire(r);
+    return jDocTraite("Prépare la facture (ou complète celle en cours) d'après ce document que je t'envoie : devis, panier ou capture d'écran d'un fournisseur (AD / Autossimo, Comptoir Auto…) ou rapport d'expertise. Texte lu sur le document :\n"+txt.slice(0,9000));}
   const rap={cabinet:R.cabinet,postes:R.postes,pieces:R.pieces,detail:R.detail,ht:R.ht==null||isNaN(R.ht)?null:r2(R.ht),ttc:R.ttc==null||isNaN(R.ttc)?null:r2(R.ttc),
     net:R.net==null||isNaN(R.net)?null:r2(R.net),franchise:R.franchise==null||isNaN(R.franchise)?null:r2(R.franchise),accord_lese:R.accord_lese!==false,warn:R.warn,mode:"expert"};
   const lignes=lignesRapport(rap,"expert").map(l=>Object.assign({estime:false},l));
