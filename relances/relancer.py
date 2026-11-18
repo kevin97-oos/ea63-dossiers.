@@ -210,6 +210,40 @@ class Boite:
         if self.s:
             self.s.quit()
 
+# Adresses connues par assureur (si le dossier n'en a pas)
+MAILS_CONNUS = {"gmf": "indemnisation.auto@gmf.fr", "maaf": "service-client.auto@maaf.fr",
+                "bpce": "sinistres@assurances.bpce.fr", "pacifica": "BCA.446@bca.fr"}
+def mail_connu(S):
+    t = (str(S.get("assureur_court") or "") + " " + str(S.get("assureur_affiche") or "")).lower()
+    for k, v in MAILS_CONNUS.items():
+        if k in t:
+            return v
+    return ""
+
+def controles(dossiers):
+    """Petits oublis à corriger dans l'appli."""
+    pb = []
+    for d in dossiers.values():
+        S = d.get("S") or {}
+        if d.get("statut") not in ("envoye", "cours", "verif"):
+            continue
+        lib = f"N° {S.get('numero') or '?'} {S.get('client_nom') or 'client ?'}"
+        manque = []
+        if d.get("statut") == "envoye":
+            if not (S.get("mail_assureur") or S.get("mail_expert")):
+                manque.append("mail de l'assurance" + (" (j'utilise " + mail_connu(S) + ")" if mail_connu(S) else ""))
+            if not S.get("n_sinistre"):
+                manque.append("n° de sinistre")
+            if ttc_of(d) < 0.01:
+                manque.append("montant de la facture")
+        if not S.get("assureur_court"):
+            manque.append("assureur")
+        if not S.get("immat"):
+            manque.append("plaque")
+        if manque:
+            pb.append(f"{lib} : il manque {', '.join(manque)}")
+    return pb
+
 # ---------------------------------------------------------------- Programme
 def main():
     now = datetime.now(timezone.utc)
@@ -254,6 +288,8 @@ def main():
             continue
         to = [x.strip() for x in (S.get("mail_assureur") or "").replace(";", ",").split(",") if x.strip()]
         cc = [x.strip() for x in (S.get("mail_expert") or "").replace(";", ",").split(",") if x.strip()]
+        if not to and not cc and mail_connu(S):
+            to = [mail_connu(S)]
         if not to and cc:
             to, cc = cc, []
         if not to:
@@ -279,7 +315,10 @@ def main():
         print(f"  RELANCÉ     {lib} – {eur(attendu)} – n° {n} -> {', '.join(to + cc)}")
 
     # Récapitulatif au garage (seulement s'il y a quelque chose à dire)
-    if faites or manuelles or erreurs:
+    ctrl = controles(dossiers)
+    for c in ctrl:
+        print("  CONTRÔLE   ", c)
+    if faites or manuelles or erreurs or ctrl:
         parties = []
         if faites:
             parties.append("Relances envoyées aujourd'hui :\n- " + "\n- ".join(faites))
@@ -287,6 +326,8 @@ def main():
             parties.append("À relancer à la main :\n- " + "\n- ".join(manuelles))
         if erreurs:
             parties.append("Erreurs :\n- " + "\n- ".join(erreurs))
+        if ctrl:
+            parties.append("Contrôle des dossiers (à compléter dans l'appli) :\n- " + "\n- ".join(ctrl))
         corps = "\n\n".join(parties) + "\n\nPour arrêter les relances d'un dossier : passez-le en « Payé » dans l'application, ou cochez « Ne plus relancer » dans l'onglet Envoi.\n\n— Relances automatiques EA63 Dossiers"
         print("\n" + corps)
         try:

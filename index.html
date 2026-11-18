@@ -1275,9 +1275,15 @@ function startNew(){
 async function newDossier(){startNew();await saveNow();}
 /* Scanner : ouvre l'appareil photo tout de suite (même geste) */
 function quickScan(kind){startNew();PKIND=kind;const inp=kind==="rap"?$("#fPhoto"):$("#fCam");inp.value="";inp.click();saveNow();}
+function mailConnu(S1){const t=sansAcc((S1.assureur_court||"")+" "+(S1.assureur_affiche||""));
+  const k=Object.keys(PRESETS).find(k=>k!=="autre"&&PRESETS[k].mail_assureur&&t.includes(k));return k?PRESETS[k].mail_assureur:"";}
+function oublis(d){const S1=d.S||{},m=[];if(!["envoye","cours","verif"].includes(d.statut))return m;
+  if(d.statut==="envoye"){if(!(S1.mail_assureur||S1.mail_expert))m.push("mail de l'assurance");if(!S1.n_sinistre)m.push("n° de sinistre");if(ttcOf(d)<0.01)m.push("montant");}
+  if(!S1.assureur_court)m.push("assureur");if(!S1.immat)m.push("plaque");return m;}
 async function openDossier(id){
   const d=await DB.get(id)||ALL.find(x=>x.id===id);if(!d)return toast("Dossier introuvable");
-  CUR=d;S=Object.assign(blankS(),d.S);CUR.S=S;PHOTOS=[];fillForm();setTab(d.archive?"client":"photos");show("#vEdit");
+  CUR=d;S=Object.assign(blankS(),d.S);CUR.S=S;PHOTOS=[];
+  if(!S.mail_assureur&&mailConnu(S)){S.mail_assureur=mailConnu(S);log("Mail de l'assurance complété automatiquement ("+S.mail_assureur+")");setTimeout(()=>saveNow(),300);}fillForm();setTab(d.archive?"client":"photos");show("#vEdit");
   try{PHOTOS=await DB.photos(id);}catch(e){PHOTOS=[];}renderPhotos();
 }
 
@@ -2039,8 +2045,10 @@ function renderDash(){
     $("#dHero").onclick=()=>go("enc");
     const nRel=ALL.reduce((a,d)=>a+((REL[d.id]&&REL[d.id].liste)||[]).length,0),nPb=ALL.filter(d=>pbAFaire(d)&&d.statut!=="devis").length,nVer=ALL.filter(d=>d.statut==="verif"||d.statut==="cours").length,nAtt=ALL.filter(d=>d.statut==="envoye"&&resteOf(d)>=0.01).length;
     const T2=[["bell","Relances envoyées",nRel,"t1","rel"],["cart","Pare-brise à commander",nPb,"t2","pb"],["check","Dossiers en cours / à vérifier",nVer,"t3","cours"],["euro","Dossiers en attente de paiement",nAtt,"t1","rel"]];
+    const nOub=ALL.filter(d=>oublis(d).length).length;if(nOub)T2.push(["check","Dossiers incomplets à vérifier",nOub,"t2","oubli"]);
     $("#dTodo").innerHTML=T2.map(([i,l,n,c,g])=>`<button class="trow" data-g="${g}"><span class="ti ${c}">${ic(i,19)}</span><span class="tl">${l}</span><b>${n}</b><span class="tc">${ic("chev",18)}</span></button>`).join("");
-    $$("#dTodo .trow").forEach(b=>b.onclick=()=>{const g=b.dataset.g;if(g==="rel")go("rel");else if(g==="pb"){const L=ALL.filter(d=>pbAFaire(d)&&d.statut!=="devis");if(L.length===1)openDossier(L[0].id);else{FILTRE="tous";go("home");}}else{FILTRE="cours";go("home");}});
+    $$("#dTodo .trow").forEach(b=>b.onclick=()=>{const g=b.dataset.g;if(g==="oubli"){const L=ALL.filter(d=>oublis(d).length);modal("Dossiers incomplets",L.map(d=>`<button class="trow" style="width:100%;margin-bottom:6px" data-o="${esc(d.id)}"><span class="tl"><b>N° ${esc(d.S.numero||"—")} ${esc(d.S.client_nom||"")}</b><br><span style="font-weight:500;color:#5B635A;font-size:13px">Il manque : ${esc(oublis(d).join(", "))}</span></span><span class="tc">${ic("chev",18)}</span></button>`).join(""));$$("#mB [data-o]").forEach(b=>b.onclick=()=>{$("#modal").classList.add("hide");openDossier(b.dataset.o);});}
+    else if(g==="rel")go("rel");else if(g==="pb"){const L=ALL.filter(d=>pbAFaire(d)&&d.statut!=="devis");if(L.length===1)openDossier(L[0].id);else{FILTRE="tous";go("home");}}else{FILTRE="cours";go("home");}});
     const AT=ALL.filter(d=>d.S&&d.statut==="envoye"&&resteOf(d)>=0.01).sort((a,b)=>resteOf(b)-resteOf(a)).slice(0,5);
     $("#dAtt").innerHTML=AT.length?AT.map(d=>{const n=((REL[d.id]&&REL[d.id].liste)||[]).length;return `<div class="arow" data-id="${esc(d.id)}"><span class="an">${esc(d.S.numero||"—")}</span><span class="ai"><b>${esc(d.S.client_nom||"Client ?")}</b><span>${esc([d.S.assureur_court,titre(((d.S.marque||"")+" "+(d.S.modele||"")).trim())].filter(Boolean).join(" · "))}</span></span><span class="ar"><b>${eur(resteOf(d))}</b><span>${n?"Relancé "+n+"×":(d.S.mail_assureur||d.S.mail_expert?"Relance bientôt":"À appeler")}</span></span></div>`;}).join(""):'<div class="empty" style="padding:16px">Tout est payé 👍</div>';
     $$("#dAtt .arow").forEach(e=>e.onclick=()=>openDossier(e.dataset.id)); }
