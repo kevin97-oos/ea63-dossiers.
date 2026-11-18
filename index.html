@@ -1530,7 +1530,7 @@ async function jClaude(q){
   return h;}
 function jOuvrir(){$("#jef").classList.remove("hide");
   jAvEtat("salut",1);setTimeout(()=>jAvEtat("salut",0),1700);
-  if(!$("#jMsgs").children.length)jAdd("Bonjour, je suis Jeffrey 🤵\nDemandez-moi où en est un dossier, qui n'a pas payé, les relances… Je peux aussi faire une facture ou un devis (carrosserie ou pare-brise) : dites par exemple « fais un devis pour M. Dupont, Clio, aile avant gauche 180 euros, 2 heures de tôlerie et 3 heures de peinture ».","j");
+  if(!$("#jMsgs").children.length)jAdd("Bonjour, je suis Jeffrey 🤵\nDemandez-moi où en est un dossier, qui n'a pas payé, les relances… Je peux aussi faire une facture ou un devis (carrosserie, mécanique ou pare-brise) : dites par exemple « fais un devis pour M. Dupont, Clio, aile avant gauche 180 euros, 2 heures de tôlerie et 3 heures de peinture ».","j");
   $("#jSug").innerHTML=["Faire un devis","Faire une facture","Qui n'a pas payé ?","Relances","Ce mois-ci","Dossiers en cours"].map(t=>`<button type="button">${t}</button>`).join("");
   $$("#jSug button").forEach(b=>b.onclick=()=>{if(/^Faire (un|une) /.test(b.textContent)){const t=b.textContent==="Faire un devis"?"devis":"facture";
       jAdd(`Dites-moi le client, le véhicule et les travaux pour ${t==="devis"?"le devis":"la facture"} : pièces avec leur prix, heures de tôlerie ou de peinture, ou pare-brise avec son tarif et le temps de pose. Dites aussi si je l'ajoute au dossier.`,"j");$("#jIn").value=b.textContent.replace("Faire","Fais")+" ";$("#jIn").focus();return;}
@@ -1580,7 +1580,13 @@ GRILLE DU GARAGE (prix HT, TVA 20 % en plus) :
 capot, hayon, malle / couvercle de coffre, toit, pavillon, pare-chocs avant, pare-chocs arrière, calandre, grille de pare-chocs, absorbeur, renfort / traverse de pare-chocs, face avant (support radiateur), aile avant gauche / droite, aile arrière gauche / droite (custode), passage de roue, pare-boue / doublure d'aile, bas de caisse, porte avant gauche / droite, porte arrière gauche / droite, porte latérale coulissante, panneau de porte, poignée de porte, montant de baie, pied milieu, rétroviseur gauche / droit, coque de rétroviseur, glace de rétroviseur, optique / phare avant gauche / droit, feu arrière gauche / droit, antibrouillard, enjoliveur, moulure / baguette de protection, spoiler, becquet, élargisseur d'aile, jupe arrière, plancher de coffre, longeron, radiateur, condenseur de climatisation, capteur de stationnement (radar de recul), caméra, vitre de porte, lunette arrière, custode vitrée, toit ouvrant, pare-brise.
 Roues : jante avant gauche / droite, jante arrière gauche / droite (jante alu ou tôle), pneu, valve, capteur de pression (TPMS), enjoliveur de roue, cache-moyeu, écrous / écrou antivol. Opérations : remplacement de jante, rénovation de jante (décapage, redressage, peinture ou diamantage), réparation de jante voilée, montage / démontage de pneu, équilibrage.
 Bas de caisse : bas de caisse gauche / droit, protection / enjoliveur de bas de caisse, marchepied, seuil de porte. Opérations : réparation, redressage, remplacement (découpe et soudure = tôlerie T2), traitement anticorrosion, mise en peinture.
-Si un élément n'est pas dans ces listes, écris-le simplement comme le gérant le dit.
+MÉCANIQUE (le garage fait aussi de la mécanique). Taux : T1 60 €/h pour l'entretien et la dépose/pose simple ; T2 70 €/h pour la technicité moyenne ; T3 70 €/h pour la haute technicité. Classe chaque travail ainsi :
+- T1 (60 €/h) : vidange, filtre à huile / à air / à habitacle / à carburant, bougies d'allumage, plaquettes et disques de frein, mâchoires et tambours, liquide de frein (purge), liquide de refroidissement, balais d'essuie-glace, ampoules, batterie, pneus, échappement (silencieux, ligne, pot catalytique, collier), amortisseurs, ressorts, coupelles, rotules, biellettes, silentblocs, triangle / bras de suspension, roulement de roue, moyeu, cardan / soufflet de cardan, plaquettes, étrier de frein, flexible de frein, courroie d'accessoires, galet, alternateur, démarreur, radiateur, durites, thermostat, pompe à eau, embrayage (kit, butée, volant moteur), câbles, support moteur / boîte.
+- T2 (70 €/h) : électricité (faisceau, capteurs, sondes, calculateur à remplacer, éclairage), joint de culasse, kit de distribution (courroie ou chaîne, galets, pompe à eau), turbo, injecteurs, bougies de préchauffage, vanne EGR, débitmètre, filtre à particules (FAP) et catalyseur, pompe à carburant, pompe haute pression, boîte de vitesses (dépose / repose), cardan, direction (crémaillère, pompe ou assistance), compresseur et circuit de climatisation, recharge de climatisation, joint spi, carter, joint de cache-culbuteurs, volant moteur bimasse.
+- T3 (70 €/h) : révision et réfection de systèmes électroniques, réglage de train avant, programmation / codage de calculateur, injecteurs à coder, calibrage des aides à la conduite, réfection moteur ou boîte, recherche de panne complexe.
+- Forfaits de la grille : diagnostic électronique 75 € HT, géométrie 70 € HT, gardiennage 20 € HT par jour.
+Lignes mécanique : une ligne par pièce (prix donné par le gérant, jamais inventé), les fluides avec leur quantité si elle est dite (ex. huile moteur 5W30, qte = litres, pu = prix au litre), puis une ligne de main-d'œuvre par taux : {"designation":"Main-d'œuvre mécanique T1","ref":"détail court (ex. 1,00 h vidange + 0,50 h plaquettes)","qte":heures,"pu":60,"heures":true}. Pour une intervention mécanique, "genre" = "meca" et "objet" = l'intervention (ex. Remplacement kit de distribution, Entretien / vidange, Freinage avant).
+Si un élément ou une intervention n'est pas dans ces listes, écris-le simplement comme le gérant le dit et classe-le dans le taux le plus proche.
 Opérations courantes : remplacement, réparation, débosselage (sans peinture ou avec), redressage, mise en peinture, raccord peinture, peinture d'élément neuf, dépose / repose, démontage / remontage, contrôle de géométrie, calibrage caméra / radar.
 
 RÈGLES POUR LES LIGNES :
@@ -1596,7 +1602,7 @@ DOSSIER : "ajouter" vaut true si le gérant dit de l'ajouter / mettre / enregist
 Si une facture ou un devis est déjà en préparation (fourni dans "en_cours") et que le gérant demande une modification (ajouter une ligne, changer un prix, enlever…), renvoie le document complet modifié.
 
 FORMAT DE RÉPONSE :
-{"type":"facture" ou "devis","genre":"carro" ou "pb","objet":"ex. Réparation carrosserie / Remplacement pare-brise","ajouter":true|false|null,"dossier":null ou "texte",
+{"type":"facture" ou "devis","genre":"carro", "pb" ou "meca","objet":"ex. Réparation carrosserie / Remplacement pare-brise","ajouter":true|false|null,"dossier":null ou "texte",
 "client":{"civ":"M." ou "Mme" ou "","nom":"","rue":"","ville":"code postal et ville","tel":""},
 "vehicule":{"marque":"","modele":"","immat":""},
 "lignes":[...],"questions":["questions courtes s'il manque un prix ou des heures"],"phrase":"une phrase courte, à lire à voix haute, qui résume (ex. Devis carrosserie pour M. Dupont, 3 lignes, 1 250 euros TTC)."}`;
@@ -1629,11 +1635,12 @@ async function jDocIA(q){
 function jDocPropre(o){o=o||{};const type=o.type==="devis"?"devis":"facture";
   let L=(o.lignes||[]).map(l=>({designation:String(l.designation||"").trim(),ref:String(l.ref||"").trim(),
     qte:l.qte==null||l.qte===""?"":String(l.qte).replace(".",","),pu:l.pu==null||l.pu===""?"":String(l.pu).replace(".",","),heures:!!l.heures})).filter(l=>l.designation);
-  const genre=o.genre==="pb"||L.some(l=>/pare.?brise/i.test(l.designation))?"pb":"carro";
+  const meca=o.genre==="meca";
+  const genre=o.genre==="pb"||(!meca&&L.some(l=>/pare.?brise/i.test(l.designation)))?"pb":"carro";
   if(genre==="pb"&&!L.some(l=>/kit collage/i.test(l.designation))){const i=L.findIndex(l=>/^pare.?brise/i.test(l.designation));
     L.splice(i<0?0:i+1,0,{designation:"Kit collage pare-brise",ref:"Colle, primaire, activateur",qte:"1",pu:"50",heures:false});}
   L.forEach(l=>{if(l.heures&&!l.ref)l.ref="";});
-  return{type,genre,objet:o.objet||(genre==="pb"?"Remplacement pare-brise":"Réparation carrosserie"),ajouter:o.ajouter===true?true:o.ajouter===false?false:null,
+  return{type,genre,meca,objet:o.objet||(genre==="pb"?"Remplacement pare-brise":meca?"Réparation mécanique":"Réparation carrosserie"),ajouter:o.ajouter===true?true:o.ajouter===false?false:null,
     dossier:o.dossier||null,client:Object.assign({civ:"",nom:"",rue:"",ville:"",tel:""},o.client||{}),vehicule:Object.assign({marque:"",modele:"",immat:""},o.vehicule||{}),
     lignes:L,questions:(o.questions||[]).filter(Boolean),phrase:o.phrase||""};}
 
@@ -1645,7 +1652,7 @@ function jDocS(p,base){ // construit les données du document (fiche S de l'appl
   if(vide("client_rue"))s.client_rue=p.client.rue||"";if(vide("client_ville"))s.client_ville=p.client.ville||"";if(vide("client_tel"))s.client_tel=p.client.tel||"";
   if(vide("marque"))s.marque=(p.vehicule.marque||"").toUpperCase();if(vide("modele"))s.modele=(p.vehicule.modele||"").toUpperCase();
   if(vide("immat"))s.immat=(p.vehicule.immat||"").toUpperCase();
-  if(!base){s.genre=p.genre;s.sinistre_type=p.genre==="pb"?"bris de glace":"dommages carrosserie";}
+  if(!base){s.genre=p.genre;s.sinistre_type=p.genre==="pb"?"bris de glace":p.meca?"":"dommages carrosserie";if(p.meca){s.or_auto=false;s.date_or="";s.d_ces=false;s.d_not=false;}}
   if(vide("objet"))s.objet=p.objet;
   s.lignes=p.lignes.map(l=>Object.assign({},l));
   if(p.type==="devis"){if(!s.dv_date)s.dv_date=today();}else if(!s.date)s.date=today();
@@ -1659,7 +1666,7 @@ function jDocCarte(){const p=jPend,t=jDocTot(p.lignes),cible=jCible(p);
   const lig=p.lignes.map(l=>`• ${esc(l.designation)}${l.ref?" ("+esc(l.ref)+")":""} : ${l.heures?esc(l.qte||"?")+" h × ":esc(l.qte||"1")+" × "}${l.pu===""?"<b style='color:#b00'>prix ?</b>":eur(num(l.pu))} HT${l.pu!==""&&l.qte!==""?" = "+eur(r2(num(l.qte)*num(l.pu))):""}`).join("\n");
   const cli=[p.client.civ,p.client.nom].filter(Boolean).join(" ")||"client à préciser";
   const veh=[p.vehicule.marque,p.vehicule.modele,p.vehicule.immat].filter(Boolean).join(" ");
-  let h=`<b>${p.type==="devis"?"Devis":"Facture"} ${p.genre==="pb"?"pare-brise":"carrosserie"}</b> — ${esc(cli)}${veh?"\n"+esc(veh):""}\n\n${lig||"Aucune ligne pour l'instant."}\n\nTotal : <b>${eur(t.ht)} HT</b> · TVA ${eur(t.tva)} · <b>${eur(t.ttc)} TTC</b>`;
+  let h=`<b>${p.type==="devis"?"Devis":"Facture"} ${p.genre==="pb"?"pare-brise":p.meca?"mécanique":"carrosserie"}</b> — ${esc(cli)}${veh?"\n"+esc(veh):""}\n\n${lig||"Aucune ligne pour l'instant."}\n\nTotal : <b>${eur(t.ht)} HT</b> · TVA ${eur(t.tva)} · <b>${eur(t.ttc)} TTC</b>`;
   if(manque.length||p.questions.length)h+=`\n\n⚠️ ${esc((p.questions.length?p.questions:["Il manque un prix ou des heures."]).join(" "))}\nDites-le-moi et je complète.`;
   h+=`<div class="jdocb">`+
     (cible?`<button type="button" data-jd="ajout">📁 Ajouter au dossier ${esc(cible.S.numero?"n° "+cible.S.numero:"")} ${esc(cible.S.client_nom||"")}</button>`:"")+
@@ -1726,13 +1733,13 @@ async function jDocAction(k){const p=jPend;if(!p)return jAdd("Il n'y a pas de fa
       d.historique.push({at:nowIso(),by:ME||"cet appareil",txt:"Devis préparé par Jeffrey ("+eur(jDocTot(d.S.lignes).ttc)+" TTC)"});}
     else{if(!d.S.numero){const n=await DB.nextNum();d.S.numero=String(n);d.historique.push({at:nowIso(),by:ME||"cet appareil",txt:"N° de facture attribué par Jeffrey : "+n});}
       if(!d.S.date)d.S.date=today();if(d.statut==="devis")d.statut="cours";
-      if(d.S.genre==="carro"&&d.S.or_auto&&!d.S.date_or)d.S.date_or=moins5(d.S.date);
+      if(d.S.genre==="carro"&&!p.meca&&d.S.or_auto&&!d.S.date_or)d.S.date_or=moins5(d.S.date);if(p.meca)d.S.date_or=d.S.date;
       d.historique.push({at:nowIso(),by:ME||"cet appareil",txt:"Facture préparée par Jeffrey ("+eur(jDocTot(d.S.lignes).ttc)+" TTC)"});}
     d.updatedAt=nowIso();d.updatedBy=ME||"cet appareil";await DB.save(d);
   }catch(e){const r="Je n'ai pas pu l'enregistrer : "+(e.code||e.message||e)+". Il faut du réseau pour donner un numéro.";jAdd(esc(r),"j");jDire(r);return;}
   const num=p.type==="devis"?"devis n° "+d.S.dv_num:"facture n° "+d.S.numero;
   const r=`C'est fait : ${p.type==="devis"?"le "+num+" est ajouté":"la "+num+" est ajoutée"} au dossier de ${d.S.client_nom||"ce client"}. Voici le PDF à télécharger.`;
-  jAdd(esc(r)+`<div class="jdocb">${p.type==="facture"?`<button type="button" class="jtout">📑 Tout le dossier (facture, ordre, cession, notification)</button>`:""}</div>`,"j");
+  jAdd(esc(r)+`<div class="jdocb">${p.type==="facture"&&!p.meca?`<button type="button" class="jtout">📑 Tout le dossier (facture, ordre, cession, notification)</button>`:""}</div>`,"j");
   const last=$("#jMsgs").lastElementChild,bt=last.querySelector(".jtout");if(bt)bt.onclick=()=>{bt.disabled=true;jTelecharge(d,"tout",false);};
   jDire(r);jPend=null;await jTelecharge(d,p.type==="devis"?"dv":"fac",false);}
 
