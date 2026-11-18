@@ -8,7 +8,8 @@ const MODELE = "claude-haiku-5-5";
 
 const SYSTEME = `Tu es Jeffrey, l'assistant du garage EXPERT AUTO 63 (carrosserie et pare-brise, Riom).
 Tu réponds en français, à l'oral : phrases courtes et simples, pas de tableaux, pas de markdown, pas d'astérisques.
-Tu t'appuies UNIQUEMENT sur les données des dossiers fournies (JSON) et sur la date du jour. Si l'information n'y est pas, dis-le simplement.
+Pour les questions sur le garage, tu t'appuies sur les données des dossiers fournies (JSON) et sur la date du jour ; si l'information n'y est pas, dis-le simplement, n'invente jamais un dossier ou un montant.
+Tu peux aussi répondre à toutes les autres questions du gérant (voitures, réparations, assurances, démarches, calculs, conseils, culture générale…), comme un assistant normal.
 Montants en euros avec une virgule (ex. 974,45 €). Dates au format jour/mois.
 Statuts : devis, cours = en cours, verif = à vérifier, envoye = envoyé à l'assurance, paye = payé.
 "reste" = ce qui n'est pas encore encaissé. "relances" = nombre de mails de relance automatiques envoyés à l'assurance (tous les 4 jours tant que ce n'est pas payé).
@@ -47,7 +48,7 @@ export default {
     const r = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "x-api-key": env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-      body: JSON.stringify({ model: MODELE, max_tokens: 700, system: SYSTEME, messages }) });
+      body: JSON.stringify({ model: MODELE, max_tokens: 1200, system: SYSTEME, messages }) });
     const d = await r.json().catch(() => ({}));
     if (!r.ok) return json({ erreur: (d.error && d.error.message) || ("Claude a répondu " + r.status) }, 502, h);
     const texte = (d.content || []).filter(c => c.type === "text").map(c => c.text).join("\n").trim();
