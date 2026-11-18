@@ -1,0 +1,32 @@
+name: Contrôle des mails (lecture seule)
+
+# Lecture seule de la boîte Yahoo (aucun mail supprimé, déplacé ni marqué comme lu).
+# Déclenchement manuel uniquement : aucune planification.
+on:
+  workflow_dispatch:
+    inputs:
+      jours:
+        description: "Nombre de jours à lister"
+        type: string
+        default: "7"
+
+permissions:
+  contents: read
+
+jobs:
+  lire:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lire la boîte Yahoo (IMAP, lecture seule)
+        env:
+          YAHOO_APP_PASSWORD: ${{ secrets.YAHOO_APP_PASSWORD }}
+          JOURS: ${{ inputs.jours }}
+          SORTIE: mails.json
+        run: python3 controle/mails.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mails
+          path: mails.json
+          retention-days: 1
