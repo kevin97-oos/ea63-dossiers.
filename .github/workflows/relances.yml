@@ -2,7 +2,13 @@ name: Relances assurances
 
 on:
   schedule:
-    - cron: "17 7 * * *"   # tous les jours vers 8 h 17 (heure de Paris en hiver)
+    # GitHub retarde ou saute souvent les tâches programmées : on passe plusieurs fois par jour.
+    # Aucun risque de doublon : un dossier n'est jamais relancé moins de 4 jours après la relance précédente.
+    - cron: "17 6 * * *"    # ~7 h 17 (Paris, hiver)
+    - cron: "47 7 * * *"    # ~8 h 47
+    - cron: "17 9 * * *"    # ~10 h 17
+    - cron: "17 12 * * *"   # ~13 h 17
+    - cron: "17 15 * * *"   # ~16 h 17
   workflow_dispatch:
     inputs:
       essai:
