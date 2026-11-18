@@ -960,7 +960,7 @@ const JEFFREY_URL = ""; // relais Claude payant (Worker Cloudflare) – non util
 const JEFFREY_IA = true; // IA gratuite Gemini via Firebase AI Logic (à activer dans la console Firebase)
 const JEFFREY_MODELES = ["gemini-2.5-flash-lite","gemini-2.5-flash","gemini-flash-lite-latest","gemini-flash-latest"];
 const JEFFREY_CONSIGNE = `Tu es Jeffrey, l'assistant du garage EXPERT AUTO 63 (carrosserie et pare-brise, Riom).
-Tu réponds en français, comme à l'oral : va droit au but, 1 à 4 phrases claires et complètes, sans tableau, sans liste à puces, sans markdown, sans astérisques. Écris les sigles et montants pour qu'ils se lisent bien à voix haute.
+Tu es poli et chaleureux, comme un bon assistant de garage : tu dis bonjour (ou bonsoir le soir), merci, je vous en prie, au revoir, bonne journée ; tu vouvoies le gérant et tu peux l'appeler « chef ». Tu réponds en français, comme à l'oral : va droit au but, 1 à 4 phrases claires et complètes, sans tableau, sans liste à puces, sans markdown, sans astérisques. Écris les sigles et montants pour qu'ils se lisent bien à voix haute.
 Tu t'appuies uniquement sur les données des dossiers fournies (JSON) et sur la date du jour. Si l'information n'y est pas, dis-le simplement.
 Montants en euros avec une virgule (ex. 974,45 €). Dates au format jour/mois.
 Statuts : devis ; cours = en cours ; verif = à vérifier ; envoye = envoyé à l'assurance ; paye = payé.
@@ -1436,8 +1436,7 @@ Facture : ${eur(t)} · encaissé ${eur(p)} · <b>reste ${eur(Math.max(0,t-p))}</
 function jRepondre(q){const n=sansAcc(q),F=ALL.filter(d=>d.S);
   const KO=F.filter(d=>d.statut==="envoye"&&resteOf(d)>=0.01);
   const liste=L=>L.map(d=>`• ${jLien(d)} – ${esc(d.S.assureur_court||"?")} – reste ${eur(resteOf(d))} – ${relInfo(d).n} relance(s)`).join("\n");
-  if(/^(bonjour|salut|coucou|hello|bonsoir)/.test(n))return"Bonjour ! Posez-moi une question sur un dossier : un numéro, un nom de client ou une plaque.";
-  if(/merci/.test(n))return"Avec plaisir 🤵";
+  const pol=jPolitesse(n);if(pol)return pol;
   const D=jTrouver(q);
   if(D.length===1)return jFiche(D[0]);
   if(D.length>1&&D.length<=6)return`J'ai trouvé ${D.length} dossiers :\n\n`+D.map(jFiche).join("\n\n");
@@ -1453,6 +1452,21 @@ function jRepondre(q){const n=sansAcc(q),F=ALL.filter(d=>d.S);
   if(/pret|prete/.test(n)){const L=(PRETS||[]).filter(x=>x.statut!=="rendu");return L.length?`${L.length} véhicule(s) de prêt dehors.`:"Aucun véhicule de prêt dehors.";}
   if(/combien|nombre|total/.test(n))return`${F.length} dossiers dans l'appli : ${F.filter(d=>d.statut==="cours").length} en cours, ${F.filter(d=>d.statut==="envoye").length} envoyés, ${F.filter(d=>d.statut==="paye").length} payés.`;
   return"Je n'ai pas trouvé. Donnez-moi un <b>numéro de facture</b>, un <b>nom de client</b>, une <b>plaque</b> ou un <b>assureur</b>. Exemples : « dossier 48 », « Lavaud », « qui n'a pas payé ? », « relances ».";}
+
+/* Politesse : bonjour, au revoir, merci… (réponse immédiate, sans IA) */
+function jSalut(){const hh=new Date().getHours();return hh>=18||hh<5?"Bonsoir":"Bonjour";}
+function jPolitesse(n){n=n.trim().replace(/[!?.,]+$/,"");
+  const court=n.split(/\s+/).length<=6&&!/(factur|devis|dossier|relan|pay|command|pare.?brise|\d)/.test(n);
+  if(/^(au revoir|a plus|a\+|a bientot|a demain|bonne (journee|soiree|nuit|fin de journee|semaine|soiree)|bye|ciao|salut je|je te laisse|c.?est tout|ce sera tout|rien d.?autre)/.test(n)){
+    const hh=new Date().getHours();
+    return /demain/.test(n)?"À demain, chef. Bonne soirée !":hh>=18||hh<5?"Au revoir chef, bonne soirée et à bientôt !":hh<12?"Au revoir chef, bonne journée !":"Au revoir chef, bonne fin de journée !";}
+  if(court&&/^(bonjour|salut|coucou|hello|bonsoir|hey|yo|wesh)\b/.test(n)&&!/(dossier|factur|devis|paye|relan|\d)/.test(n))
+    return/(ca va|comment (ca va|vas.tu|allez.vous)|tu vas bien|vous allez bien)/.test(n)?`${jSalut()} chef ! Je vais très bien, merci. Et vous ? Que puis-je faire pour vous ?`:`${jSalut()} chef ! Que puis-je faire pour vous ? Un dossier, une facture, un devis ?`;
+  if(court&&/^(ca va|comment ca va|comment vas.tu|comment allez.vous|tu vas bien|vous allez bien)/.test(n))return"Très bien, merci chef ! Et vous ? Je suis prêt, dites-moi ce qu'il vous faut.";
+  if(court&&/(merci|super|parfait|top|genial|nickel|impeccable|c.?est bon|ok merci)/.test(n))return/merci/.test(n)?"Je vous en prie, chef. Autre chose ?":"Parfait ! Je reste là si vous avez besoin.";
+  if(court&&/^(pardon|desole|excuse)/.test(n))return"Aucun souci, chef. Je vous écoute.";
+  if(court&&/(qui es.tu|t.?es qui|tu es qui|qui etes.vous)/.test(n))return"Je suis Jeffrey, l'assistant d'Expert Auto 63. Je suis vos dossiers, les relances, et je prépare vos factures et devis en carrosserie, mécanique et pare-brise.";
+  return"";}
 /* Voix : Jeffrey écoute et répond à voix haute */
 let jRec=null,jParle=false;
 let jSon=true;try{jSon=localStorage.getItem("jef_son")!=="0";}catch(e){}
@@ -1530,7 +1544,7 @@ async function jClaude(q){
   return h;}
 function jOuvrir(){$("#jef").classList.remove("hide");
   jAvEtat("salut",1);setTimeout(()=>jAvEtat("salut",0),1700);
-  if(!$("#jMsgs").children.length)jAdd("Bonjour, je suis Jeffrey 🤵\nDemandez-moi où en est un dossier, qui n'a pas payé, les relances… Je peux aussi faire une facture ou un devis (carrosserie, mécanique ou pare-brise), même avec juste la marque, le modèle et l'année : j'estime les temps et les prix, à vérifier. Avec 📎 vous pouvez me donner un rapport d'expertise. Dites par exemple « fais un devis pour M. Dupont, Clio, aile avant gauche 180 euros, 2 heures de tôlerie et 3 heures de peinture ».","j");
+  if(!$("#jMsgs").children.length)jAdd(jSalut()+" chef, je suis Jeffrey 🤵\nDemandez-moi où en est un dossier, qui n'a pas payé, les relances… Je peux aussi faire une facture ou un devis (carrosserie, mécanique ou pare-brise), même avec juste la marque, le modèle et l'année : j'estime les temps et les prix, à vérifier. Avec 📎 vous pouvez me donner un rapport d'expertise. Dites par exemple « fais un devis pour M. Dupont, Clio, aile avant gauche 180 euros, 2 heures de tôlerie et 3 heures de peinture ».","j");
   $("#jSug").innerHTML=["Faire un devis","Faire une facture","Qui n'a pas payé ?","Relances","Ce mois-ci","Dossiers en cours"].map(t=>`<button type="button">${t}</button>`).join("");
   $$("#jSug button").forEach(b=>b.onclick=()=>{if(/^Faire (un|une) /.test(b.textContent)){const t=b.textContent==="Faire un devis"?"devis":"facture";
       jAdd(`Dites-moi le client, le véhicule et les travaux pour ${t==="devis"?"le devis":"la facture"} : pièces avec leur prix, heures de tôlerie ou de peinture, ou pare-brise avec son tarif et le temps de pose. Dites aussi si je l'ajoute au dossier.`,"j");$("#jIn").value=b.textContent.replace("Faire","Fais")+" ";$("#jIn").focus();return;}
@@ -1547,6 +1561,7 @@ $("#jForm").onsubmit=e=>{e.preventDefault();jDebloque();const q=$("#jIn").value.
       jAdd(r,"j");jDire(r);return;}}
   const parle=jParle;jParle=false;
   const nq=sansAcc(q);
+  {const pol=jPolitesse(nq);if(pol){jAdd(pol,"j");jParle=parle;jDire(pol);jParle=false;return;}}
   if(!jPend&&jDemandeTel(nq)){jTelechargeDemande(q);return;}
   if(jDocDemande(nq)||jSuite(nq)){jDocTraite(q).catch(err=>{console.warn(err);jAdd("Oups : "+esc(err.message||err),"j");});return;}
   let loc="";try{loc=jRepondre(q);}catch(err){}
@@ -1599,6 +1614,24 @@ RÈGLES POUR LES LIGNES :
 - Le gérant donne souvent seulement la marque, le modèle et l'année du véhicule. Si le nombre d'heures n'est pas dit, ESTIME-le toi-même d'après les temps barèmes habituels pour ce véhicule et cette année (temps constructeur courants), et mets "estime":true sur la ligne.
 - Si le prix d'une pièce n'est pas dit, ESTIME un prix HT moyen réaliste pour cette marque, ce modèle et cette année (pièce d'origine ou de qualité équivalente, prix public), mets "estime":true sur la ligne, et précise dans "questions" quelles pièces sont estimées pour que le gérant vérifie. Ne mets "pu":null que si tu ne peux vraiment pas estimer.
 - Les taux horaires et forfaits de la grille ne sont jamais estimés : ce sont ceux de la grille.
+- Ne demande pas le prix d'une pièce : estime-le avec les prix de référence ci-dessous. Ne pose une question que s'il manque une information indispensable (ex. on ne sait pas quelle pièce).
+PRIX DE RÉFÉRENCE DES PIÈCES (prix public HT en France, pièce d'origine ou de qualité équivalente, pour une citadine / compacte de marque généraliste : Renault, Peugeot, Citroën, Opel, Ford, Fiat). Sers-t'en quand le gérant ne donne pas le prix, puis ADAPTE à la marque, au modèle et à l'année :
+- Coefficients marque : Dacia, Lada ×0,8 ; Renault, Peugeot, Citroën, DS, Opel, Ford, Fiat, Suzuki ×1 ; Volkswagen, Seat, Skoda, Toyota, Nissan, Hyundai, Kia, Honda, Mazda, Mitsubishi ×1,1 ; Mini, Alfa Romeo, Jeep, Volvo ×1,3 ; Audi, BMW, Mercedes, Lexus, Land Rover, Jaguar ×1,6 ; Porsche, Maserati, Tesla ×2,2.
+- Coefficients gabarit : citadine ×0,9 ; compacte ×1 ; familiale, monospace, SUV ×1,2 ; grand SUV, 4x4, utilitaire (Transit, Master, Boxer, Sprinter) ×1,3.
+- Véhicule de plus de 12 ans : ×0,85 (pièce adaptable courante). Arrondis au prix rond le plus réaliste.
+Entretien : huile moteur 9 €/litre (4 à 5 l essence, 5 à 6 l diesel, plus pour les gros moteurs) ; filtre à huile 12 € ; filtre à air 18 € ; filtre d'habitacle 18 € ; filtre à gazole 32 € ; filtre à essence 25 € ; bougie d'allumage 9 € pièce (12 € iridium) ; bougie de préchauffage 22 € pièce ; liquide de frein 12 €/litre ; liquide de refroidissement 6 €/litre ; balais d'essuie-glace 25 € la paire ; ampoule H7 8 € ; AdBlue 2 €/litre.
+Freinage : plaquettes avant 45 € le jeu ; plaquettes arrière 38 € ; disques avant 85 € la paire ; disques arrière 75 € la paire ; kit tambours + mâchoires arrière 130 € ; étrier de frein (échange standard) 110 € ; flexible de frein 20 € ; capteur d'usure 12 € ; capteur ABS 45 € ; maître-cylindre 120 €.
+Suspension, direction, transmission : amortisseur avant 75 € pièce ; amortisseur arrière 55 € pièce ; coupelle d'amortisseur 30 € ; ressort 55 € ; triangle / bras de suspension 75 € ; rotule de suspension 30 € ; rotule de direction 25 € ; biellette de barre stabilisatrice 20 € ; silentbloc 25 € ; roulement / moyeu de roue 70 € ; cardan (échange standard) 160 € ; soufflet de cardan 20 € ; crémaillère (échange standard) 450 € ; pompe de direction assistée 250 €.
+Moteur et refroidissement : kit de distribution avec pompe à eau 220 € (courroie) ; kit de chaîne de distribution 450 € ; pompe à eau 60 € ; thermostat 35 € ; radiateur 160 € ; durite 30 € ; vase d'expansion 40 € ; kit courroie d'accessoires + galets 75 € ; joint de culasse (pochette) 120 € ; joint de cache-culbuteurs 35 € ; support moteur 60 € ; carter d'huile 110 € ; joint spi 18 €.
+Électricité : batterie 60 Ah 110 € ; batterie 70-80 Ah 140 € ; batterie start-stop AGM 210 € ; alternateur (échange standard) 260 € ; démarreur (échange standard) 200 € ; capteur PMH / arbre à cames 45 € ; sonde de température 25 € ; bobine d'allumage 55 € pièce ; moteur d'essuie-glace 120 € ; mécanisme de lève-vitre 90 € ; neiman / contacteur 90 €.
+Embrayage et boîte : kit d'embrayage 230 € ; volant moteur bimasse 450 € ; kit embrayage + bimasse 650 € ; émetteur / récepteur d'embrayage 70 € ; butée hydraulique 110 € ; huile de boîte 15 €/litre.
+Injection, turbo, dépollution, échappement : turbo (échange standard) 650 € ; injecteur diesel (échange standard) 260 € pièce ; injecteur essence 90 € pièce ; vanne EGR 220 € ; débitmètre 120 € ; pompe haute pression (échange standard) 550 € ; pompe à carburant 160 € ; filtre à particules (FAP) 750 € ; catalyseur 450 € ; sonde lambda 70 € ; silencieux arrière 120 € ; silencieux intermédiaire 90 € ; tube / flexible d'échappement 45 € ; collier 8 €.
+Climatisation : recharge de gaz 70 € HT (forfait) ; compresseur 420 € ; condenseur 150 € ; détendeur 60 € ; filtre déshydrateur 40 €.
+Roues : pneu 15 pouces 70 €, 16 pouces 85 €, 17 pouces 110 €, 18 pouces 140 €, 19 pouces et plus 180 € pièce ; valve 3 € ; équilibrage 10 € par roue ; jante tôle 70 € ; jante alu 220 € ; rénovation de jante 90 € ; capteur de pression TPMS 45 €.
+Carrosserie (pièce nue, avant peinture) : aile avant 120 € ; capot 280 € ; pare-chocs avant 220 € ; pare-chocs arrière 200 € ; porte nue 350 € ; hayon 450 € ; rétroviseur complet 150 € ; coque de rétroviseur 35 € ; glace de rétroviseur 30 € ; optique avant halogène 180 € (LED / xénon 550 €) ; feu arrière 90 € ; antibrouillard 45 € ; calandre 90 € ; grille de pare-chocs 35 € ; absorbeur 60 € ; renfort de pare-chocs 90 € ; bas de caisse 150 € ; radiateur 160 € ; condenseur 150 € ; agrafes et visserie 15 €.
+TEMPS DE MAIN-D'ŒUVRE DE RÉFÉRENCE (compacte, à adapter au véhicule) : vidange + filtre 0,5 h ; filtres air / habitacle 0,3 h ; bougies 0,5 h ; plaquettes avant 0,8 h ; disques + plaquettes avant 1,2 h ; disques + plaquettes arrière 1,3 h ; kit tambours arrière 1,5 h ; purge de frein 0,5 h ; amortisseurs avant (paire) 2 h ; amortisseurs arrière (paire) 1 h ; triangle 1 h ; rotule 0,6 h ; roulement de roue 1,2 h ; cardan 1,5 h ; kit distribution 3,5 h (2,5 à 5 h selon moteur) ; pompe à eau seule 2 h ; courroie d'accessoires 0,8 h ; embrayage 5 h (4 à 7 h) ; joint de culasse 8 h ; turbo 3 h ; injecteur diesel 1 h pièce ; vanne EGR 1,5 h ; alternateur 1,5 h ; démarreur 1,5 h ; batterie 0,3 h (0,8 h si codage) ; radiateur 1,5 h ; thermostat 1 h ; silencieux arrière 0,6 h ; FAP 2 h ; compresseur de clim 2,5 h ; pneus 0,2 h pièce (montage + équilibrage) ; géométrie : forfait. Carrosserie : dépose / repose pare-chocs 1 h ; remplacement aile avant 1,5 h ; remplacement capot 0,8 h ; remplacement porte 2,5 h ; peinture d'un élément 2 à 3 h + ingrédients ; raccord peinture 1,5 h.
+Ces prix et temps sont des références : la ligne reste marquée "estime":true et le gérant valide.
+
 
 DOSSIER : "ajouter" vaut true si le gérant dit de l'ajouter / mettre / enregistrer au dossier (du client), false s'il dit de ne pas l'ajouter, null s'il ne dit rien. "dossier" = numéro de facture, nom du client ou plaque qu'il cite pour le dossier (sinon null). Utilise la liste des dossiers fournie pour reconnaître le client.
 Si une facture ou un devis est déjà en préparation (fourni dans "en_cours") et que le gérant demande une modification (ajouter une ligne, changer un prix, enlever…), renvoie le document complet modifié.
@@ -1607,7 +1640,7 @@ FORMAT DE RÉPONSE :
 {"type":"facture" ou "devis","genre":"carro", "pb" ou "meca","objet":"ex. Réparation carrosserie / Remplacement pare-brise","ajouter":true|false|null,"dossier":null ou "texte",
 "client":{"civ":"M." ou "Mme" ou "","nom":"","rue":"","ville":"code postal et ville","tel":""},
 "vehicule":{"marque":"","modele":"","annee":"","immat":""},
-"lignes":[{"designation":"","ref":"","qte":1,"pu":0,"heures":false,"estime":false}],"questions":["questions courtes s'il manque un prix ou des heures"],"phrase":"une phrase courte, à lire à voix haute, qui résume (ex. Devis carrosserie pour M. Dupont, 3 lignes, 1 250 euros TTC)."}`;
+"lignes":[{"designation":"","ref":"","qte":1,"pu":0,"heures":false,"estime":false}],"questions":["questions courtes s'il manque un prix ou des heures"],"phrase":"une phrase courte et polie, à lire à voix haute, qui résume (ex. Devis carrosserie pour M. Dupont, 3 lignes, 1 250 euros TTC)."}`;
 
 let jPend=null; // facture ou devis en préparation
 const jDocDemande=n=>/(factur|devis)/.test(n)&&/(fai|redig|prepar|cre|etabli|genere|edit|sor[st]|nouve|monte|ajout|mets|met |modifi|change|enleve|retire)/.test(n);
