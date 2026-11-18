@@ -939,6 +939,15 @@ const TAMPON = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAWgAAADCAQAAAABMbm
 const NB = " ";
 const FIREBASE_CONFIG = {"apiKey":"AIzaSyB-MPzuy0ugXbozC8_YAMlIA52JU4GIUsg","authDomain":"ea63-aea28.firebaseapp.com","projectId":"ea63-aea28","storageBucket":"ea63-aea28.firebasestorage.app","messagingSenderId":"449636850740","appId":"1:449636850740:web:87b33f06371491f0fb7e61"};
 const FB_VER = "10.12.2";
+// Badge App Check pour Jeffrey (jeton de débogage « Jeffrey » enregistré dans Firebase > App Check)
+const JEFFREY_APPCHECK = "cb3c31f5-f0ff-4a94-b890-cb352ffe6c48";
+async function jAppCheck(){
+  const r=await fetch(`https://firebaseappcheck.googleapis.com/v1/projects/${FIREBASE_CONFIG.projectId}/apps/${FIREBASE_CONFIG.appId}:exchangeDebugToken?key=${FIREBASE_CONFIG.apiKey}`,
+    {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({debug_token:JEFFREY_APPCHECK,limited_use:true})});
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok||!d.token)throw new Error((d.error&&d.error.message)||("App Check "+r.status));
+  return d.token;
+}
 const EMET = '<b>EXPERT AUTO 63</b>Carrosserie - Pare-brise<br>1 rue Pierre et Marie Curie - 63200 RIOM<br>Tél. : 06 26 52 33 62<br>SIRET : 999 578 743 00018 - APE : 4520A<br>TVA : FR59 999 578 743';
 const PIED_DOS = 'EXPERT AUTO 63 — SARL au capital de 10 000 € — Siège social : 3 impasse des Clématites, 63530 Volvic — RCS Clermont-Ferrand 999 578 743<br>1 rue Pierre et Marie Curie, 63200 Riom — Tél. 06 26 52 33 62 — expertauto63@yahoo.com — TVA FR59 999 578 743';
 const IBAN_LIGNE = 'IBAN : FR76 3000 3020 3800 0202 5295 914 — BIC : SOGEFRPP';
@@ -1518,6 +1527,7 @@ async function jGemini(q){
   const contents=[{role:"user",parts:[{text:contexte}]},{role:"model",parts:[{text:"Bien reçu, je connais les dossiers."}]}]
     .concat(jHisto.map(m=>({role:m.role==="assistant"?"model":"user",parts:[{text:m.texte}]})),[{role:"user",parts:[{text:q}]}]);
   const h={"Content-Type":"application/json","x-goog-api-key":FIREBASE_CONFIG.apiKey,"X-Firebase-Appid":FIREBASE_CONFIG.appId};
+  try{h["X-Firebase-AppCheck"]=await jAppCheck();}catch(e){console.warn("App Check",e);}
   try{if(Cloud.auth&&Cloud.auth.currentUser)h.Authorization="Firebase "+await Cloud.auth.currentUser.getIdToken();}catch(e){}
   let derr="";let ordre=JEFFREY_MODELES.slice();try{const ok=localStorage.getItem("jef_modele");if(ok&&ordre.includes(ok))ordre=[ok].concat(ordre.filter(x=>x!==ok));}catch(e){}
   for(const m of ordre){
@@ -1663,6 +1673,7 @@ async function jDocIA(q){
   const ctx={aujourdhui:today(),dossiers:jDossiersCourts(),en_cours:jPend?{type:jPend.type,genre:jPend.genre,objet:jPend.objet,client:jPend.client,vehicule:jPend.vehicule,lignes:jPend.lignes}:null};
   const contents=[{role:"user",parts:[{text:"Contexte (JSON) :\n"+JSON.stringify(ctx)+"\n\nDemande du gérant : "+q}]}];
   const h={"Content-Type":"application/json","x-goog-api-key":FIREBASE_CONFIG.apiKey,"X-Firebase-Appid":FIREBASE_CONFIG.appId};
+  try{h["X-Firebase-AppCheck"]=await jAppCheck();}catch(e){console.warn("App Check",e);}
   try{if(Cloud.auth&&Cloud.auth.currentUser)h.Authorization="Firebase "+await Cloud.auth.currentUser.getIdToken();}catch(e){}
   let derr="";let ordre=JEFFREY_MODELES.slice();try{const ok=localStorage.getItem("jef_modele");if(ok&&ordre.includes(ok))ordre=[ok].concat(ordre.filter(x=>x!==ok));}catch(e){}
   for(const m of ordre){
@@ -1982,6 +1993,7 @@ async function jMailIA(q){
     dossiers:R.length&&R.length<=2?R.map(d=>{const S1=d.S;return{numero:S1.numero,client:((S1.client_civ||"")+" "+(S1.client_nom||"")).trim(),vehicule:titre(((S1.marque||"")+" "+(S1.modele||"")).trim()),immat:S1.immat,assureur:S1.assureur_court,sinistre:S1.n_sinistre,contrat:S1.n_contrat,expertise:S1.exp_num,facture_ttc:ttcOf(d),date_facture:S1.date,statut:d.statut};}):[]};
   const contents=[{role:"user",parts:[{text:"Contexte (JSON) :\n"+JSON.stringify(ctx)+"\n\nDemande du gérant : "+q}]}];
   const h={"Content-Type":"application/json","x-goog-api-key":FIREBASE_CONFIG.apiKey,"X-Firebase-Appid":FIREBASE_CONFIG.appId};
+  try{h["X-Firebase-AppCheck"]=await jAppCheck();}catch(e){console.warn("App Check",e);}
   try{if(Cloud.auth&&Cloud.auth.currentUser)h.Authorization="Firebase "+await Cloud.auth.currentUser.getIdToken();}catch(e){}
   // pour les textes, on préfère le modèle le plus soigné
   const ordre=["gemini-2.5-flash"].concat(JEFFREY_MODELES.filter(m=>m!=="gemini-2.5-flash"));let derr="";
