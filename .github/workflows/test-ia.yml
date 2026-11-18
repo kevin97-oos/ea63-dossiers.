@@ -1,0 +1,31 @@
+name: Test connexion IA (Jeffrey)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Tester App Check et Gemini (Firebase AI Logic)
+        run: |
+          P=ea63-aea28; A="1:449636850740:web:87b33f06371491f0fb7e61"; K=AIzaSyB-MPzuy0ugXbozC8_YAMlIA52JU4GIUsg
+          echo "== App Check"
+          R=$(curl -sS -m 20 -w '\nHTTP %{http_code} en %{time_total}s' -X POST "https://firebaseappcheck.googleapis.com/v1/projects/$P/apps/$A:exchangeDebugToken?key=$K" -H 'Content-Type: application/json' -d '{"debug_token":"cb3c31f5-f0ff-4a94-b890-cb352ffe6c48"}')
+          echo "$R" | tail -1; echo "$R" | grep -o '"error"[^}]*' | head -3 || true
+          T=$(echo "$R" | head -n -1 | python3 -c 'import sys,json;print(json.load(sys.stdin).get("token",""))' 2>/dev/null || true)
+          [ -n "$T" ] && echo "jeton App Check : OK" || echo "jeton App Check : ABSENT"
+          for m in gemini-2.5-flash-lite gemini-2.5-flash gemini-flash-lite-latest gemini-flash-latest; do
+            for mode in avec sans; do
+              H=(); [ "$mode" = avec ] && H=(-H "X-Firebase-AppCheck: $T")
+              echo "== $m ($mode App Check)"
+              curl -sS -m 40 -w '\nHTTP %{http_code} en %{time_total}s\n' -X POST "https://firebasevertexai.googleapis.com/v1beta/projects/$P/models/$m:generateContent" \
+                -H 'Content-Type: application/json' -H "x-goog-api-key: $K" -H "X-Firebase-Appid: $A" "${H[@]}" \
+                -d '{"contents":[{"role":"user","parts":[{"text":"Dis bonjour en 3 mots."}]}],"generationConfig":{"maxOutputTokens":30,"thinkingConfig":{"thinkingBudget":0}}}' | grep -E '"text"|"message"|"status"|^HTTP' | head -4
+            done
+          done
+          echo "== Streaming (gemini-2.5-flash-lite)"
+          curl -sS -m 40 -N -w '\nHTTP %{http_code} en %{time_total}s\n' -X POST "https://firebasevertexai.googleapis.com/v1beta/projects/$P/models/gemini-2.5-flash-lite:streamGenerateContent?alt=sse" \
+            -H 'Content-Type: application/json' -H "x-goog-api-key: $K" -H "X-Firebase-Appid: $A" -H "X-Firebase-AppCheck: $T" \
+            -d '{"contents":[{"role":"user","parts":[{"text":"Compte de 1 à 5."}]}],"generationConfig":{"maxOutputTokens":40,"thinkingConfig":{"thinkingBudget":0}}}' | grep -E '"text"|"message"|^HTTP' | head -8
