@@ -236,12 +236,33 @@ def controles(dossiers):
                 manque.append("n° de sinistre")
             if ttc_of(d) < 0.01:
                 manque.append("montant de la facture")
+            if not d.get("archive"):
+                sig = (d.get("signature") or {}).get("statut")
+                if sig != "signee":
+                    manque.append("cession de créance signée en ligne (vérifier la version papier)")
+                if not (isinstance(d.get("envoi"), dict) and d["envoi"].get("at")):
+                    manque.append("date d'envoi à l'assurance")
         if not S.get("assureur_court"):
             manque.append("assureur")
         if not S.get("immat"):
             manque.append("plaque")
         if manque:
             pb.append(f"{lib} : il manque {', '.join(manque)}")
+    # numérotation des factures : une seule suite, sans trou ni doublon
+    nums = []
+    for d in dossiers.values():
+        n = str((d.get("S") or {}).get("numero") or "").strip()
+        if n.isdigit():
+            nums.append(int(n))
+    if nums:
+        vus, doubles = set(), set()
+        for n in nums:
+            (doubles if n in vus else vus).add(n)
+        trous = [n for n in range(min(nums), max(nums) + 1) if n not in vus]
+        if doubles:
+            pb.append("Numéros de facture en double : " + ", ".join(map(str, sorted(doubles))))
+        if trous:
+            pb.append("Numéros de facture manquants dans la suite : " + ", ".join(map(str, trous)))
     return pb
 
 # ---------------------------------------------------------------- Programme
