@@ -429,6 +429,37 @@ input,select,textarea{border-radius:12px;border-color:var(--line)}
 .seg{background:#E4E8E2;border-radius:14px}
 #vEdit .top{background:var(--dk)}#vEdit .tabs{background:var(--dk)}#vEdit .top .tt small{letter-spacing:.04em}
 @media (prefers-reduced-motion:no-preference){[data-v]:not(.hide){animation:vin .28s cubic-bezier(.2,.8,.2,1)}@keyframes vin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}}
+
+/* ===== Avatar Jeffrey ===== */
+.jav{position:relative;height:210px;flex:0 0 auto;display:flex;justify-content:center;align-items:flex-end;background:radial-gradient(ellipse at 50% 85%,#E3F6DF 0,#F1F3EF 62%);overflow:hidden}
+.jav svg{height:200px;width:auto;overflow:visible}
+.jav::before{content:"";position:absolute;bottom:18px;left:50%;width:150px;height:150px;margin-left:-75px;border-radius:50%;border:3px solid #3DDC2F;opacity:0;transform:scale(.8)}
+.jav.ecoute::before{animation:jvRing 1.2s ease-out infinite}
+@keyframes jvRing{0%{opacity:.7;transform:scale(.8)}100%{opacity:0;transform:scale(1.25)}}
+#jvBody{animation:jvBreath 3.2s ease-in-out infinite}
+@keyframes jvBreath{50%{transform:translateY(-1.6px)}}
+#jvEyes,#jvMouth,#jvHead,#jvArm{transform-box:fill-box}
+#jvEyes{transform-origin:center;animation:jvBlink 4.5s infinite}
+@keyframes jvBlink{0%,93%,100%{transform:scaleY(1)}95%{transform:scaleY(.1)}}
+#jvMouth{transform-origin:center;transform:scaleY(1);opacity:0}
+.jav.parle #jvMouth{opacity:1;animation:jvTalk .26s ease-in-out infinite alternate}
+.jav.parle #jvSmile{opacity:0}
+@keyframes jvTalk{0%{transform:scaleY(.6) scaleX(1)}50%{transform:scaleY(2.6) scaleX(.9)}100%{transform:scaleY(1.4) scaleX(1.05)}}
+#jvHead{transform-origin:50% 100%;transition:transform .35s cubic-bezier(.2,.8,.2,1)}
+.jav.ecoute #jvHead{transform:rotate(-7deg)}
+.jav.pense #jvHead{transform:rotate(5deg) translateY(-1px)}
+.jav.pense #jvEyes{animation:none;transform:translate(2px,-2px)}
+.jav.parle #jvHead{animation:jvNod 1.6s ease-in-out infinite}
+@keyframes jvNod{50%{transform:rotate(1.5deg) translateY(.6px)}}
+#jvArm{transform-origin:0% 0%}
+.jav.salut #jvArm{animation:jvWave 1.6s ease-in-out}
+@keyframes jvWave{0%,100%{transform:rotate(0)}20%{transform:rotate(-150deg)}35%{transform:rotate(-130deg)}50%{transform:rotate(-155deg)}65%{transform:rotate(-130deg)}80%{transform:rotate(-150deg)}}
+.jav.parle #jvArm{animation:jvGest 2.4s ease-in-out infinite}
+@keyframes jvGest{0%,100%{transform:rotate(0)}40%{transform:rotate(-28deg)}60%{transform:rotate(-20deg)}}
+.javSay{position:absolute;top:12px;right:12px;max-width:42%;background:#fff;border-radius:14px 14px 4px 14px;padding:7px 10px;font-size:12px;font-weight:600;color:#111;box-shadow:0 2px 8px rgba(0,0,0,.08);opacity:0;transition:opacity .2s}
+.javSay:not(:empty){opacity:1}
+#jMsgs{min-height:150px}
+@media (prefers-reduced-motion:reduce){#jvBody,#jvEyes,.jav.parle #jvHead,.jav.parle #jvArm{animation:none}}
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..800&display=swap" rel="stylesheet">
@@ -872,7 +903,59 @@ input,select,textarea{border-radius:12px;border-color:var(--line)}
 <button id="jefB" class="hide" aria-label="Demander à Jeffrey">🤵<small>Jeffrey</small></button>
 <div id="jef" class="hide">
   <div class="jp">
-    <div class="jh"><span class="av">🤵</span><div><b>Jeffrey</b><small>Votre assistant dossiers</small></div><button id="jSon" style="margin-left:auto">🔊</button><button id="jX" style="margin-left:6px">✕</button></div>
+    <div class="jh"><span class="av" style="display:none">🤵</span><div><b>Jeffrey</b><small>Votre assistant dossiers</small></div><button id="jSon" style="margin-left:auto">🔊</button><button id="jX" style="margin-left:6px">✕</button></div>
+    <div id="jAv" class="jav"><svg id="jvSvg" viewBox="0 0 200 300" width="100%" height="100%" role="img" aria-label="Jeffrey, l'assistant">
+ <defs>
+  <linearGradient id="jvPolo" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1d221d"/><stop offset="1" stop-color="#121512"/></linearGradient>
+  <linearGradient id="jvPant" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a403a"/><stop offset="1" stop-color="#2b302b"/></linearGradient>
+  <radialGradient id="jvSkin" cx=".45" cy=".4" r=".7"><stop offset="0" stop-color="#e9b98f"/><stop offset="1" stop-color="#d49a6e"/></radialGradient>
+ </defs>
+ <ellipse cx="100" cy="292" rx="52" ry="6" fill="#000" opacity=".12"/>
+ <g id="jvBody">
+  <!-- jambes -->
+  <path d="M74 196 L70 278 L92 278 L98 206 Z" fill="url(#jvPant)"/>
+  <path d="M126 196 L130 278 L108 278 L102 206 Z" fill="url(#jvPant)"/>
+  <!-- chaussures -->
+  <path d="M66 276 h28 a4 4 0 0 1 4 4 v4 h-36 a6 6 0 0 1 4 -8z" fill="#f4f6f3"/><rect x="62" y="283" width="36" height="4" rx="2" fill="#3DDC2F"/>
+  <path d="M106 276 h28 a6 6 0 0 1 4 8 h-36 v-4 a4 4 0 0 1 4 -4z" fill="#f4f6f3"/><rect x="102" y="283" width="36" height="4" rx="2" fill="#3DDC2F"/>
+  <!-- ceinture -->
+  <rect x="70" y="190" width="60" height="9" rx="3" fill="#1a1a1a"/><rect x="95" y="191" width="10" height="7" rx="1.5" fill="#9aa398"/>
+  <!-- bras gauche (repos) -->
+  <path d="M60 112 C48 130 46 160 50 184" stroke="url(#jvPolo)" stroke-width="17" stroke-linecap="round" fill="none"/>
+  <circle cx="51" cy="188" r="8" fill="url(#jvSkin)"/>
+  <!-- buste -->
+  <path d="M60 104 Q100 92 140 104 L136 194 Q100 200 64 194 Z" fill="url(#jvPolo)"/>
+  <path d="M86 100 L100 122 L114 100" fill="none" stroke="#3DDC2F" stroke-width="4" stroke-linejoin="round"/>
+  <circle cx="100" cy="128" r="1.8" fill="#3DDC2F"/><circle cx="100" cy="137" r="1.8" fill="#3DDC2F"/>
+  <rect x="112" y="128" width="20" height="12" rx="3" fill="#3DDC2F"/><text x="122" y="137" text-anchor="middle" font-size="7" font-weight="800" fill="#0E3B0A" font-family="Inter,Arial">EA63</text>
+  <path d="M64 150 h72" stroke="#262b26" stroke-width="1"/>
+  <!-- bras droit (salut) -->
+  <g id="jvArm">
+   <path d="M140 112 C152 128 156 156 150 184" stroke="url(#jvPolo)" stroke-width="17" stroke-linecap="round" fill="none"/>
+   <circle cx="149" cy="188" r="8" fill="url(#jvSkin)"/>
+  </g>
+  <!-- cou -->
+  <rect x="92" y="84" width="16" height="16" rx="5" fill="#d49a6e"/>
+  <!-- tête -->
+  <g id="jvHead">
+   <ellipse cx="66" cy="62" rx="5" ry="7" fill="#d49a6e"/><ellipse cx="134" cy="62" rx="5" ry="7" fill="#d49a6e"/>
+   <rect x="68" y="26" width="64" height="68" rx="30" fill="url(#jvSkin)"/>
+   <!-- cheveux -->
+   <path d="M67 52 C64 26 84 16 102 18 C122 18 138 30 133 54 C128 40 118 34 104 34 C88 34 76 38 67 52Z" fill="#2a1f19"/>
+   <!-- barbe courte -->
+   <path d="M70 66 C72 92 88 98 100 98 C112 98 128 92 130 66 C126 80 116 86 100 86 C84 86 74 80 70 66Z" fill="#3a2b22" opacity=".85"/>
+   <!-- sourcils -->
+   <path id="jvBrows" d="M80 48 q8 -4 15 0 M105 48 q8 -4 15 0" stroke="#2a1f19" stroke-width="3" stroke-linecap="round" fill="none"/>
+   <!-- yeux -->
+   <g id="jvEyes"><ellipse cx="88" cy="58" rx="4" ry="4.6" fill="#1b1b1b"/><ellipse cx="112" cy="58" rx="4" ry="4.6" fill="#1b1b1b"/>
+    <circle cx="89.4" cy="56.6" r="1.3" fill="#fff"/><circle cx="113.4" cy="56.6" r="1.3" fill="#fff"/></g>
+   <!-- nez -->
+   <path d="M100 60 q-4 10 0 12" stroke="#b97f56" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+   <!-- bouche -->
+   <g id="jvMouthG"><ellipse id="jvMouth" cx="100" cy="80" rx="8" ry="2.2" fill="#5a1f17"/><path id="jvSmile" d="M91 78 q9 6 18 0" stroke="#5a1f17" stroke-width="2.4" stroke-linecap="round" fill="none"/></g>
+  </g>
+ </g>
+</svg><div class="javSay" id="jAvSay"></div></div>
     <div id="jMsgs"></div>
     <div id="jSug"></div>
     <div id="jVoix"><button type="button" id="jMic">🎤</button><div id="jEtat">Appuyez sur le micro et parlez</div></div>
@@ -1370,7 +1453,7 @@ function jFiche(d){const S1=d.S,t=ttcOf(d),p=paidOf(d),r=relInfo(d);
 Facture : ${eur(t)} · encaissé ${eur(p)} · <b>reste ${eur(Math.max(0,t-p))}</b>`;
   if(d.statut==="envoye"&&t-p>=0.01)h+=r.pause?"\nRelances arrêtées pour ce dossier.":`\nRelancé ${r.n} fois${r.n?" (dernière le "+quand(r.der.at)+")":""}. ${r.mail?"Prochaine relance "+(r.proch||"bientôt")+" à "+esc(r.mail)+".":"⚠️ Pas de mail d'assurance : à relancer par téléphone."}`;
   if(d.signature&&d.signature.statut)h+=d.signature.statut==="signee"?"\nCession de créance signée ✍️":"\nSignature en attente ⏳";
-  if(S1.genre==="pb")h+=d.pb_cmd?"\nPare-brise commandé le "+quand(d.pb_cmd.at)+".":"\n🛒 Pare-brise pas encore commandé.";
+  if(S1.genre==="pb"&&(d.pb_cmd||pbAFaire(d)))h+=d.pb_cmd?"\nPare-brise commandé le "+quand(d.pb_cmd.at)+".":"\n🛒 Pare-brise pas encore commandé.";
   if(S1.note)h+="\nNote : "+esc(S1.note);
   return h;}
 function jRepondre(q){const n=sansAcc(q),F=ALL.filter(d=>d.S);
@@ -1402,7 +1485,15 @@ function jDebloque(){if(!window.speechSynthesis)return;try{const u=new SpeechSyn
 function jVoix(){const V=speechSynthesis.getVoices().filter(v=>/^fr/i.test(v.lang)),FR=V.filter(v=>/fr-FR/i.test(v.lang));
   const top=x=>/premium|amélior|enhanced|siri/i.test(x.name);
   return FR.find(v=>top(v)&&/thomas|daniel|siri/i.test(v.name))||FR.find(top)||FR.find(v=>/thomas/i.test(v.name))||FR[0]||V[0]||null;}
-function jDire(html){if(!jSon||!window.speechSynthesis)return;
+let jAvT=null;
+function jAvEtat(e,on){const a=document.getElementById("jAv");if(a)a.classList.toggle(e,!!on);}
+function jAvSay(t){const e=document.getElementById("jAvSay");if(e)e.textContent=t||"";}
+function jAvParle(ms){jAvEtat("parle",1);clearInterval(jAvT);const t0=Date.now();
+  jAvT=setInterval(()=>{const enCours=jSon&&window.speechSynthesis&&(speechSynthesis.speaking||speechSynthesis.pending);
+    if((ms&&Date.now()-t0>ms)||(!ms&&Date.now()-t0>700&&!enCours)){jAvEtat("parle",0);clearInterval(jAvT);}},200);}
+function jDire(html){const brut=String(html||"").replace(/<[^>]+>/g,"");
+  if(!jSon||!window.speechSynthesis){jAvParle(Math.min(4000,brut.length*35));return;}
+  jAvParle(0);
   const t=html.replace(/<br\s*\/?>/gi,". ").replace(/<[^>]+>/g,"").replace(/&amp;/g,"et").replace(/&[a-z#0-9]+;/gi," ").replace(/€/g," euros").replace(/•/g,"").replace(/·/g,",").replace(/ – /g,", ").replace(/N° /g,"numéro ").replace(/[\u00a0\u202f]/g," ").replace(/⚠️|✍️|⏳|👍|🤵/g,"");
   speechSynthesis.cancel();const v=jVoix();
   (t.match(/[^.!?\n]+[.!?\n]*/g)||[t]).map(x=>x.trim()).filter(x=>x.length>1).slice(0,25).forEach(ph=>{
@@ -1412,12 +1503,12 @@ function jEcoute(){const SR=window.SpeechRecognition||window.webkitSpeechRecogni
   if(!SR){$("#jEtat").innerHTML="Le micro n'est pas disponible ici : appuyez dans la case du bas puis sur le 🎤 du clavier pour dicter.";$("#jIn").focus();return;}
   if(jRec){jRec.stop();return;}
   jRec=new SR();jRec.lang="fr-FR";jRec.interimResults=true;jRec.continuous=false;let fin="";
-  jRec.onstart=()=>{$("#jMic").classList.add("on");$("#jEtat").textContent="Je vous écoute…";};
+  jRec.onstart=()=>{$("#jMic").classList.add("on");$("#jEtat").textContent="Je vous écoute…";jAvEtat("ecoute",1);jAvSay("Je vous écoute…");};
   let silence=null;
   jRec.onresult=e=>{let t="";for(const r of e.results){t+=r[0].transcript;if(r.isFinal)fin=t;}$("#jEtat").textContent=t;
     if(t.trim()){fin=fin||"";clearTimeout(silence);silence=setTimeout(()=>{if(!fin)fin=t;try{jRec&&jRec.stop();}catch(err){}},1000);}};
   jRec.onerror=e=>{$("#jEtat").textContent=e.error==="not-allowed"?"Autorisez le micro pour l'appli dans les réglages de l'iPhone.":"Je n'ai pas entendu, réessayez.";};
-  jRec.onend=()=>{clearTimeout(silence);$("#jMic").classList.remove("on");jRec=null;const q=(fin||"").trim()||($("#jEtat").textContent!=="Je vous écoute…"?"":"");
+  jRec.onend=()=>{clearTimeout(silence);jAvEtat("ecoute",0);jAvSay("");$("#jMic").classList.remove("on");jRec=null;const q=(fin||"").trim()||($("#jEtat").textContent!=="Je vous écoute…"?"":"");
     if(fin.trim()){jParle=true;$("#jIn").value=fin.trim();$("#jForm").requestSubmit();$("#jEtat").textContent="Appuyez sur le micro et parlez";}};
   try{jRec.start();}catch(err){jRec=null;$("#jEtat").textContent="Micro indisponible, réessayez.";}}
 $("#jMic").onclick=()=>{if(window.speechSynthesis)speechSynthesis.cancel();jDebloque();jEcoute();};
@@ -1461,6 +1552,7 @@ async function jClaude(q){
   let h=esc(rep);ALL.filter(x=>x.S&&x.S.numero).forEach(x=>{h=h.replace(new RegExp("(N°|numéro|dossier)\\s?"+x.S.numero+"\\b","gi"),m=>`<a href="#" data-jo="${esc(x.id)}">${m}</a>`);});
   return h;}
 function jOuvrir(){$("#jef").classList.remove("hide");
+  jAvEtat("salut",1);setTimeout(()=>jAvEtat("salut",0),1700);
   if(!$("#jMsgs").children.length)jAdd("Bonjour, je suis Jeffrey 🤵\nDemandez-moi où en est un dossier, qui n'a pas payé, les relances…","j");
   $("#jSug").innerHTML=["Qui n'a pas payé ?","Relances","Ce mois-ci","Dossiers en cours"].map(t=>`<button type="button">${t}</button>`).join("");
   $$("#jSug button").forEach(b=>b.onclick=()=>{$("#jIn").value=b.textContent;$("#jForm").requestSubmit();});}
@@ -1478,8 +1570,8 @@ $("#jForm").onsubmit=e=>{e.preventDefault();jDebloque();const q=$("#jIn").value.
   const nq=sansAcc(q);let loc="";try{loc=jRepondre(q);}catch(err){}
   const pourIA=/redig|ecri|mail|message|lettre|pourquoi|conseil|explique|resume|compare|aide|comment|que faire|propose|priorit|premier|urgent/.test(nq);
   if(loc&&!/^Je n'ai pas trouvé/.test(loc)&&!pourIA){jAdd(loc,"j");jParle=parle;jDire(loc);jParle=false;return;}
-  if((JEFFREY_URL||JEFFREY_IA)&&Store.mode==="cloud"){const att=document.createElement("div");att.className="jm j";att.textContent="…";$("#jMsgs").appendChild(att);$("#jMsgs").scrollTop=1e9;
-    jClaude(q).then(r=>{att.remove();jAdd(r,"j");jParle=parle;jDire(r);jParle=false;})
+  if((JEFFREY_URL||JEFFREY_IA)&&Store.mode==="cloud"){jAvEtat("pense",1);jAvSay("Je réfléchis…");const att=document.createElement("div");att.className="jm j";att.textContent="…";$("#jMsgs").appendChild(att);$("#jMsgs").scrollTop=1e9;
+    jClaude(q).finally(()=>{jAvEtat("pense",0);jAvSay("");}).then(r=>{att.remove();jAdd(r,"j");jParle=parle;jDire(r);jParle=false;})
       .catch(err=>{att.remove();console.warn("Jeffrey",err);let r;try{r=jRepondre(q);}catch(e){r="Oups, je n'ai pas réussi à lire les dossiers.";}
         jAdd(r+'<br><small style="color:#888">(réponse simple : l’IA ne répond pas en ce moment – '+esc(String(err&&err.message||err).slice(0,120))+')</small>',"j");jParle=parle;jDire(r);jParle=false;});
     return;}
