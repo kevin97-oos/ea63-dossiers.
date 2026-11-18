@@ -2,6 +2,8 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
+<link rel="preconnect" href="https://firebasevertexai.googleapis.com" crossorigin>
+<link rel="preconnect" href="https://firebaseappcheck.googleapis.com" crossorigin>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>EA63 Dossiers</title>
 <meta property="og:type" content="website">
@@ -965,9 +967,83 @@ mic:'<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14
 quote:'<path d="M5 4h14v16l-3-2-2 2-2-2-2 2-2-2-3 2z"/><path d="M9 9h6M9 13h4"/>',fact:'<path d="M6 3h12v18H6z"/><path d="M9 8h6M9 12h6M9 16h4"/>'};
 const ic=(n,s=22)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICO[n]}</svg>`;
 
+/* Connexion IA de Jeffrey : badge App Check et connexion gardés en mémoire,
+   réponse reçue en continu, nouveaux essais automatiques et modèles de secours */
+let jAC=null,jACfin=0,jACpromesse=null;
+async function jAppCheckMemo(neuf){
+  if(neuf){try{return await jAppCheck();}catch(e){return null;}}
+  if(jAC&&Date.now()<jACfin)return jAC;
+  if(!jACpromesse)jACpromesse=(async()=>{try{
+    const r=await fetch(`https://firebaseappcheck.googleapis.com/v1/projects/${FIREBASE_CONFIG.projectId}/apps/${FIREBASE_CONFIG.appId}:exchangeDebugToken?key=${FIREBASE_CONFIG.apiKey}`,
+      {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({debug_token:JEFFREY_APPCHECK})});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok||!d.token)throw new Error((d.error&&d.error.message)||("App Check "+r.status));
+    const ttl=parseInt(String(d.ttl||"3600"),10)||3600;
+    jAC=d.token;jACfin=Date.now()+Math.max(120,ttl-300)*1000;return jAC;}
+    catch(e){console.warn("App Check",e);return null;}finally{jACpromesse=null;}})();
+  return jACpromesse;}
+async function jEntetes(neuf){
+  const h={"Content-Type":"application/json","x-goog-api-key":FIREBASE_CONFIG.apiKey,"X-Firebase-Appid":FIREBASE_CONFIG.appId};
+  const ac=await jAppCheckMemo(neuf);if(ac)h["X-Firebase-AppCheck"]=ac;
+  try{if(Cloud.auth&&Cloud.auth.currentUser)h.Authorization="Firebase "+await Cloud.auth.currentUser.getIdToken();}catch(e){}
+  return h;}
+function jReveil(){try{jEntetes(false).catch(()=>{});}catch(e){}}
+function jOrdre(){let o=JEFFREY_MODELES.slice();try{const ok=localStorage.getItem("jef_modele");if(ok&&o.includes(ok))o=[ok].concat(o.filter(x=>x!==ok));}catch(e){}return o;}
+async function jIA(o){
+  const debut=Date.now(),BUDGET=80000;let derr="",neuf=false,essai=0;
+  for(let tour=0;tour<3;tour++){
+    for(const m of o.ordre){
+      if(Date.now()-debut>BUDGET)throw new Error(derr||"trop long");
+      if(essai++>0){try{jAvSay("Je réessaie, un instant…");}catch(e){}}
+      const h=await jEntetes(neuf);
+      const body=JSON.stringify({systemInstruction:{parts:[{text:o.consigne}]},contents:o.contents,generationConfig:o.gen(m)});
+      const ctl=new AbortController();let veille=null;
+      const attendre=ms=>{clearTimeout(veille);veille=setTimeout(()=>ctl.abort(),ms);};
+      attendre(tour===0?14000:22000);
+      let txt="",coupe=false;
+      try{
+        const r=await fetch(`https://firebasevertexai.googleapis.com/v1beta/projects/${FIREBASE_CONFIG.projectId}/models/${m}:streamGenerateContent?alt=sse`,{method:"POST",headers:h,signal:ctl.signal,body});
+        if(!r.ok){clearTimeout(veille);const d=await r.json().catch(()=>({}));
+          derr=(d.error&&d.error.message)||("erreur "+r.status);
+          if(r.status===401||r.status===403)neuf=true;
+          continue;}
+        attendre(15000);
+        const lec=r.body.getReader(),dec=new TextDecoder();let tampon="";
+        const ligne=l=>{l=l.trim();if(!l.startsWith("data:"))return;let d;try{d=JSON.parse(l.slice(5));}catch(e){return;}
+          if(d.error)throw new Error(d.error.message||"erreur");
+          const c=((d.candidates||[])[0]||{}).content;
+          if(c){const t=(c.parts||[]).filter(p=>!p.thought).map(p=>p.text||"").join("");
+            if(t){txt+=t;if(o.onPart&&!o.json){try{o.onPart(txt);}catch(e){}}}}};
+        for(;;){const {value,done}=await lec.read();if(done)break;attendre(15000);
+          tampon+=dec.decode(value,{stream:true});let i;
+          while((i=tampon.indexOf("\n"))>=0){const l=tampon.slice(0,i);tampon=tampon.slice(i+1);ligne(l);}}
+        tampon+=dec.decode();if(tampon)ligne(tampon);
+        clearTimeout(veille);
+      }catch(e){clearTimeout(veille);derr=(e&&e.name==="AbortError")?"trop long":String((e&&e.message)||e);coupe=true;}
+      txt=txt.trim();
+      if(!txt){if(!coupe)derr="réponse vide";continue;}
+      if(o.json){if(coupe)continue;
+        const t=txt.replace(/^```(json)?/i,"").replace(/```$/,"").trim();
+        let v;try{v=JSON.parse(t);}catch(e){derr="réponse illisible";continue;}
+        if(o.retenir&&jLeger(m)){try{localStorage.setItem("jef_modele",m);}catch(e){}}
+        return v;}
+      if(o.retenir&&!coupe&&jLeger(m)){try{localStorage.setItem("jef_modele",m);}catch(e){}}
+      return txt;}
+    if(Date.now()-debut>BUDGET)break;
+    await new Promise(z=>setTimeout(z,1500*(tour+1)));}
+  throw new Error(derr||"trop long");}
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")jReveil();});
+setTimeout(jReveil,4000);
 const JEFFREY_URL = ""; // relais Claude payant (Worker Cloudflare) – non utilisé
 const JEFFREY_IA = true; // IA gratuite Gemini via Firebase AI Logic (à activer dans la console Firebase)
-const JEFFREY_MODELES = ["gemini-2.5-flash-lite","gemini-2.5-flash","gemini-flash-lite-latest","gemini-flash-latest"];
+// Google a retiré les modèles 2.5 aux nouveaux comptes : on passe sur la génération 3.x
+const JEFFREY_MODELES = ["gemini-3.5-flash-lite","gemini-flash-lite-latest","gemini-3.8-flash","gemini-flash-latest"];
+const jLeger = m => /lite/.test(m);
+// réglage de réflexion adapté à chaque modèle (les anciens réglages « thinkingBudget: 0 » sont refusés)
+function jGen(m,base){const g=Object.assign({},base);delete g.thinkingConfig;
+  if(jLeger(m))g.thinkingConfig={thinkingLevel:"minimal"};
+  else{g.thinkingConfig={thinkingLevel:"low"};g.maxOutputTokens=(g.maxOutputTokens||400)+1500;}
+  return g;}
 const JEFFREY_CONSIGNE = `Tu es Jeffrey, l'assistant du garage EXPERT AUTO 63 (carrosserie et pare-brise, Riom).
 Tu es poli et chaleureux, comme un bon assistant de garage : tu dis bonjour (ou bonsoir le soir), merci, je vous en prie, au revoir, bonne journée ; tu vouvoies le gérant et tu peux l'appeler « chef ». Tu réponds en français, comme à l'oral : va droit au but, 1 à 4 phrases claires et complètes, sans tableau, sans liste à puces, sans markdown, sans astérisques. Écris les sigles et montants pour qu'ils se lisent bien à voix haute.
 Tu t'appuies uniquement sur les données des dossiers fournies (JSON) et sur la date du jour. Si l'information n'y est pas, dis-le simplement.
@@ -1522,26 +1598,15 @@ function jDonnees(){const lim=new Date(Date.now()-90*864e5).toISOString().slice(
   expertise:S1.exp_num||"",date_facture:S1.date||"",envoye_le:d.envoi&&d.envoi.at?d.envoi.at.slice(0,10):"",ttc:t,encaisse:p,reste:r2(Math.max(0,t-p)),
   relances:r.n,derniere_relance:r.der?r.der.at.slice(0,10):"",relances_arretees:r.pause,mail_relance:r.mail,
   signature:d.signature?d.signature.statut:"",pare_brise:d.S.genre==="pb"?(d.pb_cmd?"commande le "+d.pb_cmd.at.slice(0,10):"a commander"):"",travaux:(S1.lignes||[]).map(l=>l.designation).filter(Boolean).slice(0,6).join(" ; "),note:S1.note||""};});}
-async function jGemini(q){
+async function jGemini(q,onPart){
   const contexte=`Date du jour : ${new Date().toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}\nDossiers (JSON) :\n${JSON.stringify(jDonnees())}`;
   const contents=[{role:"user",parts:[{text:contexte}]},{role:"model",parts:[{text:"Bien reçu, je connais les dossiers."}]}]
     .concat(jHisto.map(m=>({role:m.role==="assistant"?"model":"user",parts:[{text:m.texte}]})),[{role:"user",parts:[{text:q}]}]);
-  const h={"Content-Type":"application/json","x-goog-api-key":FIREBASE_CONFIG.apiKey,"X-Firebase-Appid":FIREBASE_CONFIG.appId};
-  try{h["X-Firebase-AppCheck"]=await jAppCheck();}catch(e){console.warn("App Check",e);}
-  try{if(Cloud.auth&&Cloud.auth.currentUser)h.Authorization="Firebase "+await Cloud.auth.currentUser.getIdToken();}catch(e){}
-  let derr="";let ordre=JEFFREY_MODELES.slice();try{const ok=localStorage.getItem("jef_modele");if(ok&&ordre.includes(ok))ordre=[ok].concat(ordre.filter(x=>x!==ok));}catch(e){}
-  for(const m of ordre){
-    const ctl=new AbortController(),to=setTimeout(()=>ctl.abort(),15000);
-    let r;try{r=await fetch(`https://firebasevertexai.googleapis.com/v1beta/projects/${FIREBASE_CONFIG.projectId}/models/${m}:generateContent`,{method:"POST",headers:h,signal:ctl.signal,
-      body:JSON.stringify({systemInstruction:{parts:[{text:JEFFREY_CONSIGNE}]},contents,generationConfig:{maxOutputTokens:400,temperature:0.2,thinkingConfig:{thinkingBudget:0}}})});}
-    catch(e){clearTimeout(to);derr="trop long";continue;}
-    clearTimeout(to);const d=await r.json().catch(()=>({}));
-    if(r.ok){const t=((d.candidates||[])[0]||{}).content;const txt=t?(t.parts||[]).filter(p=>!p.thought).map(p=>p.text||"").join("").trim():"";if(txt){try{localStorage.setItem("jef_modele",m);}catch(e){}return txt;}derr="réponse vide";continue;}
-    derr=(d.error&&d.error.message)||("erreur "+r.status);if(r.status!==404&&r.status!==400)break;}
-  throw new Error(derr);}
-async function jClaude(q){
+  return await jIA({consigne:JEFFREY_CONSIGNE,contents,ordre:jOrdre(),retenir:true,onPart,
+    gen:m=>jGen(m,{maxOutputTokens:400,temperature:0.2})});}
+async function jClaude(q,onPart){
   let rep;
-  if(!JEFFREY_URL)rep=await jGemini(q);else{
+  if(!JEFFREY_URL)rep=await jGemini(q,onPart);else{
   const tok=Store.mode==="cloud"&&Cloud.auth&&Cloud.auth.currentUser?await Cloud.auth.currentUser.getIdToken():"";
   const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),30000);
   const r=await fetch(JEFFREY_URL,{method:"POST",signal:ctl.signal,headers:{"Content-Type":"application/json"},
@@ -1552,7 +1617,7 @@ async function jClaude(q){
   // liens vers les dossiers cités
   let h=esc(rep);ALL.filter(x=>x.S&&x.S.numero).forEach(x=>{h=h.replace(new RegExp("(N°|numéro|dossier)\\s?"+x.S.numero+"\\b","gi"),m=>`<a href="#" data-jo="${esc(x.id)}">${m}</a>`);});
   return h;}
-function jOuvrir(){$("#jef").classList.remove("hide");
+function jOuvrir(){$("#jef").classList.remove("hide");jReveil();
   jAvEtat("salut",1);setTimeout(()=>jAvEtat("salut",0),1700);
   if(!$("#jMsgs").children.length)jAdd(jSalut()+" chef, je suis Jeffrey 🤵\nDemandez-moi où en est un dossier, qui n'a pas payé, les relances… Je peux aussi faire une facture ou un devis (carrosserie, mécanique ou pare-brise), même avec juste la marque, le modèle et l'année : j'estime les temps et les prix, à vérifier. Je rédige aussi vos mails pour n'importe quel organisme : donnez-moi l'adresse et quelques mots. Et je peux envoyer un dossier à l'assurance par mail : « envoie le dossier 52 à l'assurance ». Avec 📎 vous pouvez me donner un rapport d'expertise, ou une capture d'écran des prix chez AD ou Comptoir Auto : je reprends les vrais prix. Dites par exemple « fais un devis pour M. Dupont, Clio, aile avant gauche 180 euros, 2 heures de tôlerie et 3 heures de peinture ».","j");
   $("#jSug").innerHTML=["Faire un devis","Faire une facture","Écrire un mail","Qui n'a pas payé ?","Relances","Ce mois-ci","Dossiers en cours"].map(t=>`<button type="button">${t}</button>`).join("");
@@ -1583,7 +1648,7 @@ $("#jForm").onsubmit=e=>{e.preventDefault();jDebloque();const q=$("#jIn").value.
   const pourIA=/redig|ecri|mail|message|lettre|pourquoi|conseil|explique|resume|compare|aide|comment|que faire|propose|priorit|premier|urgent/.test(nq);
   if(loc&&!/^Je n'ai pas trouvé/.test(loc)&&!pourIA){jAdd(loc,"j");jParle=parle;jDire(loc);jParle=false;return;}
   if((JEFFREY_URL||JEFFREY_IA)&&Store.mode==="cloud"){jAvEtat("pense",1);jAvSay("Je réfléchis…");const att=document.createElement("div");att.className="jm j";att.textContent="…";$("#jMsgs").appendChild(att);$("#jMsgs").scrollTop=1e9;
-    jClaude(q).finally(()=>{jAvEtat("pense",0);jAvSay("");}).then(r=>{att.remove();jAdd(r,"j");jParle=parle;jDire(r);jParle=false;})
+    jClaude(q,t=>{att.textContent=t.replace(/\*\*?/g,"");$("#jMsgs").scrollTop=1e9;}).finally(()=>{jAvEtat("pense",0);jAvSay("");}).then(r=>{att.remove();jAdd(r,"j");jParle=parle;jDire(r);jParle=false;})
       .catch(err=>{att.remove();console.warn("Jeffrey",err);let r;try{r=jRepondre(q);}catch(e){r="Oups, je n'ai pas réussi à lire les dossiers.";}
         jAdd(r+'<br><small style="color:#888">(réponse simple : l’IA ne répond pas en ce moment – '+esc(String(err&&err.message||err).slice(0,120))+')</small>',"j");jParle=parle;jDire(r);jParle=false;});
     return;}
@@ -1672,21 +1737,8 @@ function jDossiersCourts(){return ALL.filter(d=>d.S&&!d.archive||d.S&&d.S.numero
 async function jDocIA(q){
   const ctx={aujourdhui:today(),dossiers:jDossiersCourts(),en_cours:jPend?{type:jPend.type,genre:jPend.genre,objet:jPend.objet,client:jPend.client,vehicule:jPend.vehicule,lignes:jPend.lignes}:null};
   const contents=[{role:"user",parts:[{text:"Contexte (JSON) :\n"+JSON.stringify(ctx)+"\n\nDemande du gérant : "+q}]}];
-  const h={"Content-Type":"application/json","x-goog-api-key":FIREBASE_CONFIG.apiKey,"X-Firebase-Appid":FIREBASE_CONFIG.appId};
-  try{h["X-Firebase-AppCheck"]=await jAppCheck();}catch(e){console.warn("App Check",e);}
-  try{if(Cloud.auth&&Cloud.auth.currentUser)h.Authorization="Firebase "+await Cloud.auth.currentUser.getIdToken();}catch(e){}
-  let derr="";let ordre=JEFFREY_MODELES.slice();try{const ok=localStorage.getItem("jef_modele");if(ok&&ordre.includes(ok))ordre=[ok].concat(ordre.filter(x=>x!==ok));}catch(e){}
-  for(const m of ordre){
-    const ctl=new AbortController(),to=setTimeout(()=>ctl.abort(),25000);
-    let r;try{r=await fetch(`https://firebasevertexai.googleapis.com/v1beta/projects/${FIREBASE_CONFIG.projectId}/models/${m}:generateContent`,{method:"POST",headers:h,signal:ctl.signal,
-      body:JSON.stringify({systemInstruction:{parts:[{text:JEFFREY_DOC_CONSIGNE}]},contents,generationConfig:{maxOutputTokens:1800,temperature:0.1,responseMimeType:"application/json",thinkingConfig:{thinkingBudget:0}}})});}
-    catch(e){clearTimeout(to);derr="trop long";continue;}
-    clearTimeout(to);const d=await r.json().catch(()=>({}));
-    if(r.ok){const t=((d.candidates||[])[0]||{}).content;let txt=t?(t.parts||[]).filter(p=>!p.thought).map(p=>p.text||"").join("").trim():"";
-      txt=txt.replace(/^```(json)?/i,"").replace(/```$/,"").trim();
-      try{return JSON.parse(txt);}catch(e){derr="réponse illisible";continue;}}
-    derr=(d.error&&d.error.message)||("erreur "+r.status);if(r.status!==404&&r.status!==400)break;}
-  throw new Error(derr);}
+  return await jIA({consigne:JEFFREY_DOC_CONSIGNE,contents,ordre:jOrdre(),retenir:true,json:true,
+    gen:m=>jGen(m,{maxOutputTokens:1800,temperature:0.1,responseMimeType:"application/json"})});}
 
 /* Nettoie ce que renvoie l'IA et applique les règles du garage */
 function jDocPropre(o){o=o||{};const type=o.type==="devis"?"devis":"facture";
@@ -1833,7 +1885,7 @@ async function jDocTraite(q){const n=sansAcc(q);
   }
   if(jPend&&/telecharg|\bpdf\b/.test(n)){const r="Je l'ajoute d'abord au dossier, ou je vous donne un brouillon sans l'ajouter ? Utilisez les boutons ci-dessus, ou dites « ajoute-le au dossier » ou « ne l'ajoute pas ».";jAdd(esc(r),"j");jDire(r);return;}
   jAvEtat("pense",1);jAvSay("Je prépare…");const att=document.createElement("div");att.className="jm j";att.textContent="Je prépare…";$("#jMsgs").appendChild(att);$("#jMsgs").scrollTop=1e9;
-  let o;try{o=await jDocIA(q);}catch(e){att.remove();jAvEtat("pense",0);jAvSay("");const r="Je n'arrive pas à joindre l'IA en ce moment ("+String(e.message||e).slice(0,80)+"). Réessayez dans un instant.";jAdd(esc(r),"j");jDire(r);return;}
+  let o;try{o=await jDocIA(q);}catch(e){att.remove();jAvEtat("pense",0);jAvSay("");const r="L'IA de Google est saturée en ce moment : j'ai réessayé plusieurs fois sans réponse ("+String(e.message||e).slice(0,80)+"). Redemandez-moi dans une minute.";jAdd(esc(r),"j");jDire(r);return;}
   att.remove();jAvEtat("pense",0);jAvSay("");
   const rapAvant=jPend&&jPend.rap?{rap:jPend.rap,extra:jPend.extra}:null;
   jMail=null;jPend=jDocPropre(o);if(rapAvant){jPend.rap=rapAvant.rap;jPend.extra=rapAvant.extra;}
@@ -1992,21 +2044,9 @@ async function jMailIA(q){
     en_cours:jMail?{a:jMail.a,cc:jMail.cc,objet:jMail.objet,corps:jMail.corps}:null,
     dossiers:R.length&&R.length<=2?R.map(d=>{const S1=d.S;return{numero:S1.numero,client:((S1.client_civ||"")+" "+(S1.client_nom||"")).trim(),vehicule:titre(((S1.marque||"")+" "+(S1.modele||"")).trim()),immat:S1.immat,assureur:S1.assureur_court,sinistre:S1.n_sinistre,contrat:S1.n_contrat,expertise:S1.exp_num,facture_ttc:ttcOf(d),date_facture:S1.date,statut:d.statut};}):[]};
   const contents=[{role:"user",parts:[{text:"Contexte (JSON) :\n"+JSON.stringify(ctx)+"\n\nDemande du gérant : "+q}]}];
-  const h={"Content-Type":"application/json","x-goog-api-key":FIREBASE_CONFIG.apiKey,"X-Firebase-Appid":FIREBASE_CONFIG.appId};
-  try{h["X-Firebase-AppCheck"]=await jAppCheck();}catch(e){console.warn("App Check",e);}
-  try{if(Cloud.auth&&Cloud.auth.currentUser)h.Authorization="Firebase "+await Cloud.auth.currentUser.getIdToken();}catch(e){}
   // pour les textes, on préfère le modèle le plus soigné
-  const ordre=["gemini-2.5-flash"].concat(JEFFREY_MODELES.filter(m=>m!=="gemini-2.5-flash"));let derr="";
-  for(const m of ordre){
-    const ctl=new AbortController(),to=setTimeout(()=>ctl.abort(),30000);
-    let r;try{r=await fetch(`https://firebasevertexai.googleapis.com/v1beta/projects/${FIREBASE_CONFIG.projectId}/models/${m}:generateContent`,{method:"POST",headers:h,signal:ctl.signal,
-      body:JSON.stringify({systemInstruction:{parts:[{text:JEFFREY_MAIL_CONSIGNE}]},contents,generationConfig:{maxOutputTokens:2000,temperature:0.3,responseMimeType:"application/json",thinkingConfig:{thinkingBudget:m==="gemini-2.5-flash"?512:0}}})});}
-    catch(e){clearTimeout(to);derr="trop long";continue;}
-    clearTimeout(to);const d=await r.json().catch(()=>({}));
-    if(r.ok){const t=((d.candidates||[])[0]||{}).content;let txt=t?(t.parts||[]).filter(p=>!p.thought).map(p=>p.text||"").join("").trim():"";
-      txt=txt.replace(/^```(json)?/i,"").replace(/```$/,"").trim();try{return JSON.parse(txt);}catch(e){derr="réponse illisible";continue;}}
-    derr=(d.error&&d.error.message)||("erreur "+r.status);if(r.status!==404&&r.status!==400)break;}
-  throw new Error(derr);}
+  return await jIA({consigne:JEFFREY_MAIL_CONSIGNE,contents,json:true,ordre:["gemini-3.8-flash"].concat(JEFFREY_MODELES.filter(m=>m!=="gemini-3.8-flash")),
+    gen:m=>jGen(m,{maxOutputTokens:2000,temperature:0.3,responseMimeType:"application/json"})});}
 
 function jMailCarte(){const M=jMail,e=document.createElement("div");e.className="jm j";
   e.innerHTML=`<b>✉️ Mail prêt</b>${M.remarque?`\n⚠️ ${esc(M.remarque)}`:""}
@@ -2033,7 +2073,7 @@ async function jMailEnvoi(M){
 
 async function jMailTraite(q){
   jAvEtat("pense",1);jAvSay("Je rédige…");const att=document.createElement("div");att.className="jm j";att.textContent="Je rédige le mail…";$("#jMsgs").appendChild(att);$("#jMsgs").scrollTop=1e9;
-  let o;try{o=await jMailIA(q);}catch(e){att.remove();jAvEtat("pense",0);jAvSay("");const r="Je n'arrive pas à joindre l'IA en ce moment ("+String(e.message||e).slice(0,80)+"). Réessayez dans un instant.";jAdd(esc(r),"j");jDire(r);return;}
+  let o;try{o=await jMailIA(q);}catch(e){att.remove();jAvEtat("pense",0);jAvSay("");const r="L'IA de Google est saturée en ce moment : j'ai réessayé plusieurs fois sans réponse ("+String(e.message||e).slice(0,80)+"). Redemandez-moi dans une minute.";jAdd(esc(r),"j");jDire(r);return;}
   att.remove();jAvEtat("pense",0);jAvSay("");
   const a=String(o.a||"").trim()||((q.match(new RegExp(RE_MAIL.source,"gi"))||[]).join(", "))||(jMail&&jMail.a)||"";
   jMail={a,cc:String(o.cc||"").trim(),objet:String(o.objet||"").trim(),corps:String(o.corps||"").replace(/\r/g,"").trim(),remarque:String(o.remarque||"").trim()};
