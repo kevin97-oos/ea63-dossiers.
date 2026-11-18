@@ -2308,6 +2308,10 @@ function renderDash(){
   const AL=Object.entries(A).sort((a,b)=>b[1].ttc-a[1].ttc);
   $("#parAss").innerHTML=AL.length?`<table class="tb"><tr><th>Assurance</th><th class="r">Nb</th><th class="r">TTC</th><th class="r">Reste</th></tr>${AL.map(([k,v])=>`<tr><td><b>${esc(k)}</b><div class="bar"><i style="width:${Math.round(v.ttc/ttc*100)}%"></i></div></td><td class="r">${v.n}</td><td class="r">${eur(v.ttc)}</td><td class="r">${v.ttc-v.en>0.009?eur(v.ttc-v.en):"✓"}</td></tr>`).join("")}</table>`:'<div class="empty" style="padding:14px">Pas encore de facture sur cette période.</div>';
 }
+/* Dossiers toujours dans l'ordre des numéros de facture (46, 47, 48…), puis ceux sans numéro (devis, en cours) par date de création */
+function triNumero(a,b){const na=parseInt((a.S&&a.S.numero)||"",10),nb=parseInt((b.S&&b.S.numero)||"",10),ha=!isNaN(na),hb=!isNaN(nb);
+  if(ha&&hb)return na-nb||(a.createdAt||"").localeCompare(b.createdAt||"");if(ha)return -1;if(hb)return 1;
+  return (a.createdAt||"").localeCompare(b.createdAt||"");}
 function renderList(){
   const q=$("#q").value.trim().toLowerCase();
   const cnt={cours:0,verif:0,envoye:0,paye:0};ALL.forEach(d=>cnt[d.statut]=(cnt[d.statut]||0)+1);
@@ -2315,7 +2319,7 @@ function renderList(){
   $("#chips").innerHTML=[["tous","Tous"],...Object.entries(STATUTS).map(([k,[l]])=>[k,l])].map(([k,l])=>`<button class="chip ${FILTRE===k?"on":""}" data-f="${k}">${l}</button>`).join("");
   $$("#chips .chip").forEach(c=>c.onclick=()=>{FILTRE=c.dataset.f;renderList();});
   let L=ALL.filter(d=>FILTRE==="tous"||d.statut===FILTRE).filter(d=>!q||[d.S.client_nom,d.S.immat,d.S.numero,d.S.assureur_court,d.S.marque,d.S.modele].join(" ").toLowerCase().includes(q));
-  L.sort((a,b)=>(b.updatedAt||"").localeCompare(a.updatedAt||""));
+  L.sort(triNumero);
   $("#list").innerHTML=L.map(dosItem).join("")||'<div class="empty">Aucun dossier ici.</div>';bindDos($("#list"));
 }
 $("#q").oninput=renderList;
