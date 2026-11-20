@@ -9,6 +9,10 @@ on:
         description: "Nombre de jours à lister"
         type: string
         default: "7"
+      journal:
+        description: "Afficher aussi la liste dans le journal (si l'artefact ne peut pas être téléchargé)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -24,6 +28,7 @@ jobs:
           YAHOO_APP_PASSWORD: ${{ secrets.YAHOO_APP_PASSWORD }}
           JOURS: ${{ inputs.jours }}
           SORTIE: mails.json
+          JOURNAL: ${{ inputs.journal }}
         run: python3 controle/mails.py
       - uses: actions/upload-artifact@v4
         with:

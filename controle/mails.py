@@ -125,6 +125,11 @@ def main():
     M.logout()
     with open(SORTIE, "w", encoding="utf-8") as f:
         json.dump(out, f, ensure_ascii=False, indent=1)
+    if os.environ.get("JOURNAL", "").lower() == "true":
+        # Copie dans le journal, une ligne par mail, quand l'artefact n'est pas téléchargeable.
+        for nom, r in out["dossiers"].items():
+            for m in (r if isinstance(r, list) else []):
+                print("MAIL " + json.dumps(dict(dossier=nom, **m), ensure_ascii=False))
 
 
 if __name__ == "__main__":
